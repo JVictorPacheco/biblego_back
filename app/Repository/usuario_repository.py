@@ -1,5 +1,6 @@
 from app.Config.database import get_db_connection
 from app.Models.usuario import Usuario
+import bcrypt
 
 
 class UsuarioRepository:
@@ -8,6 +9,10 @@ class UsuarioRepository:
         print("criar_usuario -> ", usuario)
         try:
             db = get_db_connection()
+
+            senha_hash = bcrypt.hashpw(usuario.senha.encode('utf-8'), bcrypt.gensalt())
+
+
             sql = """INSERT INTO usuarios
                     (nome, email, telefone, cidade, estado, endereco, is_premium,
                     data_assinatura_premium, plano_premium, data_final_premium, idade,
@@ -34,7 +39,7 @@ class UsuarioRepository:
                 "idade": usuario.idade, "sexo": usuario.sexo, "data_nascimento": usuario.data_nascimento,
                 "status_conta": usuario.status_conta, "notificacao_habilitada": usuario.notificacao_habilitada,
                 "termos_aceitos": usuario.termos_aceitos, "cod_verificacao": usuario.cod_verificacao,
-                "url_foto": usuario.url_foto, "senha": usuario.senha
+                "url_foto": usuario.url_foto, "senha": senha_hash.decode('utf-8') #usuario.senha
 }
 
             db.cursor.execute(sql, params)  # Substitua db.session.execute por db.cursor.execute
@@ -44,6 +49,25 @@ class UsuarioRepository:
         except Exception as e:
             db.connection.rollback()
             return {"erro": str(e)}, 500
+        
+
+
+
+    def buscar_usuario_por_email(self, email):
+        """Busca um usuário pelo email"""
+
+        try:
+            db = get_db_connection()
+            sql = "SELECT * FROM usuarios WHERE email = %(emails)s"
+            db.cursor.execute(sql, {'email': email})
+            usuario_data = db.cursor.fetchone()
+            if usuario_data:
+                 return Usuario(**usuario_data) # Criando uma instancia de Usuario
+            return None
+        
+        except Exception as e:
+            return {"erro": str(e)}, 500
+
 
     
         

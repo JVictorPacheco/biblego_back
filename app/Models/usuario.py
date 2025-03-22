@@ -1,4 +1,7 @@
 #Inicializa os parâmetros de conexão
+import brcypt
+
+
 class Usuario:
 
     __tablename__ = "usuarios"
@@ -55,3 +58,8 @@ class Usuario:
             'url_foto': self.url_foto,
             'senha': self.senha
         }
+    
+    def verificar_senha(self, senha_fornecida):
+        """Verifica se a senha fornecida corrensponde ao hash armazenado"""
+        return brcypt.checkpw(senha_fornecida.encode('utf-8'), self.senha.encode('utf-8'))
+
