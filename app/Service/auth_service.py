@@ -29,7 +29,7 @@ class AuthService:
         """Gera um token JWT para usuário"""
         payload = {
             "usuario_id": usuario_id,
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.utcnow() + timedelta(hours=2)
         }
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token
