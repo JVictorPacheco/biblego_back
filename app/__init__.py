@@ -1,6 +1,6 @@
 from flask import Flask
 # from App.Routes.task_routes import task_blueprint
-from  app.Routes.task_routes import user_blueprint
+from  app.Routes.user_routes import user_blueprint
 
 
 def create_app():

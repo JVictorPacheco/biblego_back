@@ -1,18 +1,18 @@
 #Inicializa os parâmetros de conexão
-import brcypt
+import bcrypt
 
 
 class Usuario:
 
     __tablename__ = "usuarios"
         
-    def __init__(self, id, name, email, telefone, cidade, 
+    def __init__(self, id, nome, email, telefone, cidade, 
                  estado, endereco, is_premium, data_assinatura_premium, 
                  plano_premium, data_final_premium, idade, sexo, data_nascimento, 
                  status_conta, notificacao_habilitada, termos_aceitos, cod_verificacao, url_foto, senha ):
         
         self.id = id
-        self.name = name
+        self.nome = nome
         self.email = email
         self.telefone = telefone
         self.cidade = cidade
@@ -36,20 +36,18 @@ class Usuario:
     def to_dict(self):
         return {
             'id': self.id,
-            'name': self.name,
+            'nome': self.nome,
             'email': self.email,
             'telefone': self.telefone,
             'cidade': self.cidade,
             'estado': self.estado,
             'endereco': self.endereco,
-            'email': self.email,
             'is_premium': self.is_premium,
             'data_assinatura_premium': self.data_assinatura_premium,
             'plano_premium': self.plano_premium,
             'data_final_premium': self.data_final_premium,
             'idade': self.idade,
             'sexo': self.sexo,
-            'email': self.email,
             'data_nascimento': self.data_nascimento,
             'status_conta': self.status_conta,
             'notificacao_habilitada': self.notificacao_habilitada,
@@ -61,5 +59,9 @@ class Usuario:
     
     def verificar_senha(self, senha_fornecida):
         """Verifica se a senha fornecida corrensponde ao hash armazenado"""
-        return brcypt.checkpw(senha_fornecida.encode('utf-8'), self.senha.encode('utf-8'))
+        if not isinstance(self.senha, str) or not self.senha.startswith("$2b$"):
+            raise ValueError("Hash de senha inválido no banco de dados")
+        return bcrypt.checkpw(
+            senha_fornecida.encode('utf-8'), 
+            self.senha.encode('utf-8'))
 
