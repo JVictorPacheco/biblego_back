@@ -7,7 +7,7 @@ class UserService:
         self.user_repository = UsuarioRepository()
         # self.task_repository = task_repository
 
-    def user_create(self, usuario_data):
+    def criar_usuario(self, usuario_data):
 
         usuario = Usuario(
             id=None,

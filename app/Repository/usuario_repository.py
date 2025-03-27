@@ -59,17 +59,43 @@ class UsuarioRepository:
 
         try:
             db = get_db_connection()
-            sql = "SELECT * FROM usuarios WHERE email = %(emails)s"
+            sql = """
+            SELECT id, nome, email, url_foto, endereco, sexo, 
+            is_premium, data_assinatura_premium, plano_premium, 
+            data_final_premium FROM usuarios WHERE email = %(email)s 
+            """
             db.cursor.execute(sql, {'email': email})
             usuario_data = db.cursor.fetchone()
+
             if usuario_data:
-                 return Usuario(**usuario_data) # Criando uma instancia de Usuario
+            
+             campos = [
+                'id', 'nome', 'email', 'url_foto', 'endereco', 'sexo',
+                'is_premium', 'data_assinatura_premium', 'plano_premium',
+                'data_final_premium'
+            ]
+            
+             return dict(zip(campos, usuario_data))
             return None
-        
         except Exception as e:
-            return {"erro": str(e)}, 500
+         print(f"Erro ao buscar usuário: {e}")
+         return None
 
 
+
+    def buscar_senha_por_email(self, email):
+        """Busca APENAS o hash da senha para validação"""
+        try:
+            db = get_db_connection()
+            db.cursor.execute(
+                "SELECT senha FROM usuarios WHERE email = %(email)s",
+                {'email': email}
+            )
+            result = db.cursor.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            print(f"Erro ao buscar senha: {e}")
+            return None
     
         
     

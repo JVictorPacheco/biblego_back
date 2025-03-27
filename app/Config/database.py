@@ -3,10 +3,10 @@ from app.Utils.database_connection import DatabaseConnection
 # Configuração do banco de dados
 DB_CONFIG = {
     "dbname": "biblego",
-    "user": "postgres",
-    "password": "Akira.321",
-    "host": "localhost",
-    "port": "5432"
+    "user": "biblego",
+    "password": "biblego%123!",
+    "host": "177.70.98.148",
+    "port": "6543"
     }
 
 
