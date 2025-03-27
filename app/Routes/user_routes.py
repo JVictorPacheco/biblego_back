@@ -1,7 +1,11 @@
 from flask import Blueprint, jsonify, request, make_response
+from werkzeug.exceptions import BadRequest, Unauthorized
 from app.Service.user_service import UserService
 from app.Service.auth_service import AuthService
 from app.Utils.jwt_utils import token_required
+from app.Repository.usuario_repository import UsuarioRepository
+import bcrypt
+import traceback
 
 user_blueprint = Blueprint('usuario', __name__)
 
@@ -15,7 +19,7 @@ def create_user():
     try:
         # usuario = request.get_json()
         # print(usuario)
-        resultado = user_service.user_create(usuario_data)
+        resultado = user_service.criar_usuario(usuario_data)
         print(resultado)
         if not resultado is None:
             response = jsonify({'Mensagem': "Erro ao cadastrar usuário"}), 500
@@ -27,40 +31,45 @@ def create_user():
     response = make_response((response))
     response.headers['Content-Type'] = 'application/json'
     return response
-        
-
-    # email, senha, nome, data_nascimento, sexo, cidade, endereço, telefone, estado
     
 
 
 @user_blueprint.route('/usuario/login', methods=['POST'])
 def login():
-    data = request.json
-    response = None
-    if not data or not 'email' in data or not 'senha' in data:
-        response = jsonify({"error": "Email e senha são obrigatórios"}), 400
-    
-    auth_service = AuthService()
-    token = auth_service.autenticar_usuario(data['email'], data['senha'])
+    try:
+        data = request.get_json()
+        
+        # 1. Validação básica do input
+        if not data or 'email' not in data or 'senha' not in data:
+            raise BadRequest("Email e senha são obrigatórios")
 
+        # 2. Delega toda a lógica para o service
+        auth_service = AuthService()
+        resultado = auth_service.login(
+            email=data['email'],
+            senha=data['senha']
+        )
 
-    if not token:
-        response = jsonify({'erro': "Credenciais inválidas"}), 401
-    
-    response = jsonify({"token": token})
-    # Tenho que retornar tbem nome, foto entre outras coisas necessárias
+        # 3. Formata a resposta
+        return jsonify({
+            "token": resultado['token'],
+            "usuario": resultado['usuario']
+        }), 200
 
-    response = make_response((response))
-    response.headers['Content-Type'] = 'application/json'
-    return response
-
+    except BadRequest as e:
+        return jsonify({"error": str(e)}), 400
+    except Unauthorized as e:
+        return jsonify({"error": str(e)}), 401
+    except Exception as e:
+        print(f"ERRO: {traceback.format_exc()}")
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @user_blueprint.route('/usuario/logins_protegidos', methods=['GET'])
 @token_required
 def get_user_protegidas():
     user_service = UserService()
-    user = user_service.user_create()
+    user = user_service.criar_usuario()
     return jsonify({"userario": user})
 
 
