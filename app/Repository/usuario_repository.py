@@ -1,6 +1,8 @@
-from app.Config.database import get_db_connection
-from app.Models.usuario import Usuario
+from app.Config.database import get_db_connection, DB_CONFIG
 import bcrypt
+from psycopg2 import sql
+from app.Utils.database_connection import DatabaseConnection
+
 
 
 class UsuarioRepository:
@@ -14,12 +16,12 @@ class UsuarioRepository:
             sql = """INSERT INTO usuarios
                     (nome, email, telefone, cidade, estado, endereco, is_premium,
                     data_assinatura_premium, plano_premium, data_final_premium, idade,
-                    sexo, data_nascimento, status_conta, notificacao_habilitada,
+                    sexo, data_nascimento, status_conta_usuario, notificacao_habilitada,
                     termos_aceitos, cod_verificacao, url_foto, senha)
                     VALUES (%(nome)s, %(email)s, %(telefone)s, %(cidade)s, %(estado)s, 
                     %(endereco)s, %(is_premium)s, %(data_assinatura_premium)s, 
                     %(plano_premium)s, %(data_final_premium)s, %(idade)s, %(sexo)s, 
-                    %(data_nascimento)s, %(status_conta)s, %(notificacao_habilitada)s,
+                    %(data_nascimento)s, %(status_conta_usuario)s, %(notificacao_habilitada)s,
                     %(termos_aceitos)s, %(cod_verificacao)s, %(url_foto)s, %(senha)s)"""
 
             params = {
@@ -35,7 +37,7 @@ class UsuarioRepository:
                 "data_final_premium": usuario.data_final_premium,
                 "idade": usuario.idade, "sexo": usuario.sexo,
                 "data_nascimento": usuario.data_nascimento,
-                "status_conta": usuario.status_conta,
+                "status_conta_usuario": usuario.status_conta_usuario,
                 "notificacao_habilitada": usuario.notificacao_habilitada,
                 "termos_aceitos": usuario.termos_aceitos,
                 "cod_verificacao": usuario.cod_verificacao,
@@ -97,9 +99,76 @@ class UsuarioRepository:
             print(f"Erro ao buscar senha: {e}")
             return None
     
-        
     
-
+    
+    
+    
+    def atualizar_usuario(self, user_id, novos_dados):
+        
+     try:
+          with DatabaseConnection(**DB_CONFIG) as db:
+            # 1. Prepara a query dinâmica
+            set_parts = []
+            params = []
+            
+            for campo, valor in novos_dados.items():
+                set_parts.append(f"{campo} = %s")
+                params.append(valor)
+            
+            params.append(user_id)  # Adiciona o ID no final
+            
+            # 2. Query completa
+            update_query = f"""
+                UPDATE usuarios 
+                SET {', '.join(set_parts)}
+                WHERE id = %s
+            """
+            
+            # 3. Execução
+            db.cursor.execute(update_query, params)
+            db.connection.commit()
+            
+            
+            campos_alterados = list(novos_dados.keys())
+            select_query = f"""
+                SELECT {', '.join(campos_alterados)} 
+                FROM usuarios 
+                WHERE id = %s
+            """
+            db.cursor.execute(select_query, (user_id,))
+            db.connection.commit()
+            
+            
+            # 4. Processa resultado
+            resultado = db.cursor.fetchone()
+            if not resultado:
+                return {"Erro": "Usuário não encontrado"}, 404
+            
+            
+            dados_alterados = {
+                campo: valor 
+                for campo, valor in zip(campos_alterados, resultado)
+                if campo != 'senha'  # Remove campo sensível se existir
+            }
+            
+            # 5. Mapeia todas as colunas
+            # colunas = [desc[0] for desc in db.cursor.description]
+            # usuario_atualizado = dict(zip(colunas, resultado))
+            
+            # Remove campos sensíveis (opcional)
+            # usuario_atualizado.pop('senha', None)
+            
+            return {
+                "Dados_alterados": dados_alterados,
+                "Mensagem": "Atualização realizada com sucesso",
+            }, 200
+            
+     except Exception as e:
+        if 'db' in locals() and db.connection:
+         return {"erro": f"Falha na atualização: {str(e)}"}, 500
+            
+            
+            
 
 
 

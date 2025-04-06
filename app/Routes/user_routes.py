@@ -75,11 +75,21 @@ def get_user_protegidas():
 
 
 # route usuario/atualizar
-@user_blueprint.route('/usuario/atualizar', methods=['PUT'])
+@user_blueprint.route('/usuario/atualizar/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
-    novos_dados = request.json
-    reposta = UserService.atualizar_usuario(user_id, novos_dados)
-    return jsonify(reposta)
+     try:
+        
+        novos_dados = request.json
+        if not novos_dados:
+            return jsonify({"Erro": "Nenhum dado fornecido para atualização"}), 400
+        
+        response = UserService.atualizar_usuario(user_id, novos_dados)
+        return jsonify(response[0]), response[1] if isinstance(response, tuple) else 200
+    
+     except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+        
 
     
 
