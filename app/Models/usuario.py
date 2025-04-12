@@ -28,7 +28,7 @@ class Usuario:
         self.idade = kwargs.get('idade')
         self.sexo = kwargs.get('sexo')
         self.data_nascimento = kwargs.get('data_nascimento')
-        self.status_conta = kwargs.get('status_conta_usuario', True)
+        self.status_conta_usuario = kwargs.get('status_conta_usuario', True)
         self.notificacao_habilitada = kwargs.get('notificacao_habilitada', True)
         self.termos_aceitos = kwargs.get('termos_aceitos', True)
         self.cod_verificacao = kwargs.get('cod_verificacao')
