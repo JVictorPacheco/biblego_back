@@ -81,6 +81,32 @@ class UserService:
             return {"erro": str(e)}, 500
     
     
+    
+    
+    
+    
+    def deletar_usuario(user_id):
+        """
+        Valida e deleta um usuário
+        :param user_id: ID do usuário (int)
+        :return: Tuple (dict, int) - (mensagem, status_code)
+        """
+        # Validação básica do ID
+        if not isinstance(user_id, int) or user_id <= 0:
+            return {"Erro": "ID inválido"}, 400
+
+        try:
+            # Verifica se o usuário existe
+            if not UsuarioRepository.usuario_existe(user_id):
+                return {"Erro": "Usuário não encontrado"}, 404
+
+            # Deleção efetiva
+            return UsuarioRepository.deletar_usuario(user_id)
+            
+        except Exception as e:
+            return {"erro": f"Falha ao deletar usuário: {str(e)}"}, 500
+    
+    
 
 
 

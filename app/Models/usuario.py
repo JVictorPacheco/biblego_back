@@ -9,9 +9,8 @@ class Usuario:
     
     class Usuario:
     
-     def __init__(self, id, email, senha, **kwargs):
-        # Campos obrigatórios para autenticação
-        self.id = id
+     def __init__(self, id=None, email=None, senha=None, **kwargs):
+        self.id = id    # Pode ser None para novos usuários
         self.email = email
         self.senha = senha
         

@@ -14,23 +14,41 @@ user_blueprint = Blueprint('usuario', __name__)
 def create_user():
     user_service = UserService()
     usuario_data = request.json
-    print(usuario_data)
-    response = None
+    
+    if not usuario_data:
+        return jsonify({"erro": "Dados do usuário não fornecidos"}), 400
+    
     try:
-        # usuario = request.get_json()
-        # print(usuario)
         resultado = user_service.criar_usuario(usuario_data)
-        print(resultado)
-        if not resultado is None:
-            response = jsonify({'Mensagem': "Erro ao cadastrar usuário"}), 500
-        else:
-            response = jsonify({"Mensagem": "Usuário criado com sucesso!"}), 201 # erro
+        
+        # Caso de sucesso (resultado é None)
+        if resultado is None:
+            return jsonify({
+                "mensagem": "Usuário criado com sucesso!",
+                "detalhes": {
+                    "email": usuario_data['email'],
+                    "nome": usuario_data.get('nome', ''),
+                    "status": "Ativo"
+                }
+            }), 201
+        
+        # Caso de erro (resultado é uma tupla com erro)
+        if isinstance(resultado, tuple) and len(resultado) == 2:
+            return jsonify({
+                "mensagem": "Erro ao cadastrar usuário",
+                "erro": resultado[0]["erro"]
+            }), resultado[1]
+        
+        # Caso inesperado
+        return jsonify({
+            "mensagem": "Resposta inesperada do servidor"
+        }), 500
+        
     except Exception as e:
-        response = jsonify({"erro": str(e)}), 400
-
-    response = make_response((response))
-    response.headers['Content-Type'] = 'application/json'
-    return response
+        return jsonify({
+            "mensagem": "Erro ao processar requisição",
+            "erro": str(e)
+        }), 500
     
 
 
@@ -87,6 +105,19 @@ def update_user(user_id):
         return jsonify(response[0]), response[1] if isinstance(response, tuple) else 200
     
      except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+    
+    
+
+@user_blueprint.route('/usuario/deletar/<int:user_id>', methods=['DELETE'])
+def deletar_usuario(user_id):
+    """
+    Endpoint para deletar um usuário
+    """
+    try:
+        resultado = UserService.deletar_usuario(user_id)
+        return jsonify(resultado[0]), resultado[1]
+    except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
         
