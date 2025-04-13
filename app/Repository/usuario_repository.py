@@ -10,48 +10,39 @@ class UsuarioRepository:
     def criar_usuario(self, usuario):
         
      try:
-        db = get_db_connection()
-        senha_hash = bcrypt.hashpw(usuario.senha.encode('utf-8'), bcrypt.gensalt())
-        
-        # Versão 1: Se seu PostgreSQL não suporta RETURNING
-        sql = """INSERT INTO usuarios
-                (email, senha, nome, telefone, cidade, estado, endereco, 
-                is_premium, data_assinatura_premium, plano_premium, data_final_premium, 
-                idade, sexo, data_nascimento, status_conta_usuario, notificacao_habilitada,
-                termos_aceitos, cod_verificacao, url_foto, firebase_uid)
-                VALUES 
-                (%(email)s, %(senha)s, %(nome)s, %(telefone)s, %(cidade)s, %(estado)s, 
-                %(endereco)s, %(is_premium)s, %(data_assinatura_premium)s, 
-                %(plano_premium)s, %(data_final_premium)s, %(idade)s, %(sexo)s, 
-                %(data_nascimento)s, %(status_conta_usuario)s, %(notificacao_habilitada)s,
-                %(termos_aceitos)s, %(cod_verificacao)s, %(url_foto)s, %(firebase_uid)s)"""
-        
-        params = {
-            "email": usuario.email,
-            "senha": senha_hash.decode('utf-8'),
-            "nome": usuario.nome,
-            # ... todos os outros campos ...
-        }
-        
-        db.cursor.execute(sql, params)
-        db.connection.commit()
-        
-        # Busca o ID gerado de forma alternativa
-        db.cursor.execute("SELECT lastval()")
-        user_id = db.cursor.fetchone()[0]
-        usuario.id = user_id
-        
-        return None  # Sucesso
-        
+            db = get_db_connection()
+            senha_concat = usuario.email + usuario.firebase_uid
+            senha_hash = bcrypt.hashpw(senha_concat.encode('utf-8') , bcrypt.gensalt())
+            
+            sql = """INSERT INTO usuarios
+                    (nome, email, telefone, cidade, estado, endereco,
+                    sexo, data_nascimento, senha)
+                    VALUES
+                    (%(nome)s, %(email)s, %(telefone)s, %(cidade)s, %(estado)s,
+                    %(endereco)s, %(sexo)s, %(data_nascimento)s, %(senha)s)
+                    RETURNING id"""
+            
+            params = {
+                "nome": usuario.nome,
+                "email": usuario.email,
+                "telefone": usuario.telefone,
+                "cidade": usuario.cidade,
+                "estado": usuario.estado,
+                "endereco": usuario.endereco,
+                "sexo": usuario.sexo,
+                "data_nascimento": usuario.data_nascimento,
+                "senha": senha_hash.decode('utf-8')
+            }
+
+            db.cursor.execute(sql, params)
+            user_id = db.cursor.fetchone()[0]
+            db.connection.commit()
+            
+            return user_id
+            
      except Exception as e:
-        db.connection.rollback()
-        return {"erro": str(e)}, 500
-        
-        
-        
-        
-        
-        
+            db.connection.rollback()
+            raise e
         
         
         

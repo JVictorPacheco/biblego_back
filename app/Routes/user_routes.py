@@ -12,44 +12,23 @@ user_blueprint = Blueprint('usuario', __name__)
 
 @user_blueprint.route('/usuario/cadastro', methods=['POST'])
 def create_user():
-    user_service = UserService()
-    usuario_data = request.json
-    
-    if not usuario_data:
-        return jsonify({"erro": "Dados do usuário não fornecidos"}), 400
     
     try:
-        resultado = user_service.criar_usuario(usuario_data)
+        usuario_data = request.json
+        user_service = UserService()
+        user_id = user_service.criar_usuario(usuario_data)
         
-        # Caso de sucesso (resultado é None)
-        if resultado is None:
-            return jsonify({
-                "mensagem": "Usuário criado com sucesso!",
-                "detalhes": {
-                    "email": usuario_data['email'],
-                    "nome": usuario_data.get('nome', ''),
-                    "status": "Ativo"
-                }
-            }), 201
-        
-        # Caso de erro (resultado é uma tupla com erro)
-        if isinstance(resultado, tuple) and len(resultado) == 2:
-            return jsonify({
-                "mensagem": "Erro ao cadastrar usuário",
-                "erro": resultado[0]["erro"]
-            }), resultado[1]
-        
-        # Caso inesperado
         return jsonify({
-            "mensagem": "Resposta inesperada do servidor"
-        }), 500
+            "mensagem": "Usuário criado com sucesso!",
+            "id": user_id,
+            "status": "ativo"
+        }), 201
         
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
     except Exception as e:
-        return jsonify({
-            "mensagem": "Erro ao processar requisição",
-            "erro": str(e)
-        }), 500
-    
+        # return jsonify({"erro": "Falha ao criar usuário"}), 500
+        return jsonify({"erro": e}), 500
 
 
 @user_blueprint.route('/usuario/login', methods=['POST'])

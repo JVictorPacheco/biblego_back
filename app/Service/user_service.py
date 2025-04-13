@@ -10,30 +10,18 @@ class UserService:
 
     def criar_usuario(self, usuario_data):
 
-        usuario = Usuario(
-            id=None,
-            nome=usuario_data['nome'],
-            email=usuario_data['email'],
-            telefone=usuario_data['telefone'],
-            cidade=usuario_data['cidade'],
-            estado=usuario_data['estado'],
-            endereco=usuario_data['endereco'],
-            is_premium=False,
-            data_assinatura_premium=None,
-            plano_premium=None,
-            data_final_premium=None,
-            idade=None,
-            sexo=usuario_data['sexo'],
-            data_nascimento=usuario_data['data_nascimento'],
-            status_conta_usuario=None,
-            notificacao_habilitada=False,
-            termos_aceitos=False,
-            cod_verificacao=None,
-            url_foto=None,
-            senha=usuario_data['senha']
-        )
+            # Validação básica
+        campos_obrigatorios = ['nome', 'email', 'telefone', 'cidade', 
+                              'estado', 'endereco', 'sexo', 
+                              'data_nascimento']
+        
+        for campo in campos_obrigatorios:
+            if campo not in usuario_data:
+                raise ValueError(f"Campo obrigatório faltando: {campo}")
 
+        usuario = Usuario(**usuario_data)
         return self.user_repository.criar_usuario(usuario)
+            
     
     
     # Usados para o def atualizar_usuario
