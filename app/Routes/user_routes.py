@@ -12,26 +12,23 @@ user_blueprint = Blueprint('usuario', __name__)
 
 @user_blueprint.route('/usuario/cadastro', methods=['POST'])
 def create_user():
-    user_service = UserService()
-    usuario_data = request.json
-    print(usuario_data)
-    response = None
-    try:
-        # usuario = request.get_json()
-        # print(usuario)
-        resultado = user_service.criar_usuario(usuario_data)
-        print(resultado)
-        if not resultado is None:
-            response = jsonify({'Mensagem': "Erro ao cadastrar usuário"}), 500
-        else:
-            response = jsonify({"Mensagem": "Usuário criado com sucesso!"}), 201 # erro
-    except Exception as e:
-        response = jsonify({"erro": str(e)}), 400
-
-    response = make_response((response))
-    response.headers['Content-Type'] = 'application/json'
-    return response
     
+    try:
+        usuario_data = request.json
+        user_service = UserService()
+        user_id = user_service.criar_usuario(usuario_data)
+        
+        return jsonify({
+            "mensagem": "Usuário criado com sucesso!",
+            "id": user_id,
+            "status": "ativo"
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
+    except Exception as e:
+        # return jsonify({"erro": "Falha ao criar usuário"}), 500
+        return jsonify({"erro": e}), 500
 
 
 @user_blueprint.route('/usuario/login', methods=['POST'])
@@ -87,6 +84,19 @@ def update_user(user_id):
         return jsonify(response[0]), response[1] if isinstance(response, tuple) else 200
     
      except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+    
+    
+
+@user_blueprint.route('/usuario/deletar/<int:user_id>', methods=['DELETE'])
+def deletar_usuario(user_id):
+    """
+    Endpoint para deletar um usuário
+    """
+    try:
+        resultado = UserService.deletar_usuario(user_id)
+        return jsonify(resultado[0]), resultado[1]
+    except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
         

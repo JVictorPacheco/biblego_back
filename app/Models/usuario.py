@@ -7,11 +7,8 @@ class Usuario:
 
     __tablename__ = "usuarios"
     
-    class Usuario:
-    
-     def __init__(self, id, email, senha, **kwargs):
-        # Campos obrigatórios para autenticação
-        self.id = id
+    def __init__(self, id=None, email=None, senha=None, **kwargs):
+        self.id = id    # Pode ser None para novos usuários
         self.email = email
         self.senha = senha
         
@@ -33,6 +30,7 @@ class Usuario:
         self.termos_aceitos = kwargs.get('termos_aceitos', True)
         self.cod_verificacao = kwargs.get('cod_verificacao')
         self.url_foto = kwargs.get('url_foto')
+        self.firebase_uid = kwargs.get('firebase_uid')
 
     def verificar_senha(self, senha_fornecida):
         if not hasattr(self, 'senha') or not isinstance(self.senha, str) or not self.senha.startswith("$2b$"):
