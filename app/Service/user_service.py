@@ -13,7 +13,7 @@ class UserService:
             # Validação básica
         campos_obrigatorios = ['nome', 'email', 'telefone', 'cidade', 
                               'estado', 'endereco', 'sexo', 
-                              'data_nascimento']
+                              'data_nascimento', 'firebase_uid']
         
         for campo in campos_obrigatorios:
             if campo not in usuario_data:
@@ -71,8 +71,6 @@ class UserService:
     
     
     
-    
-    
     def deletar_usuario(user_id):
         """
         Valida e deleta um usuário
@@ -96,5 +94,12 @@ class UserService:
     
     
 
+
+    def obter_usuario_por_id(self, user_id):
+        # Adicione este método no UserService
+        """Obtém um usuário pelo ID"""
+        # Implementação depende do seu repositório
+        # Exemplo básico:
+        return self.user_repository.buscar_usuario_por_id(user_id)
 
 
