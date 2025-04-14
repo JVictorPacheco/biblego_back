@@ -11,7 +11,7 @@ user_blueprint = Blueprint('usuario', __name__)
 
 
 @user_blueprint.route('/usuario/cadastro', methods=['POST'])
-def create_user():
+def criar_usuario():
     
     try:
         usuario_data = request.json
@@ -32,7 +32,7 @@ def create_user():
 
 
 @user_blueprint.route('/usuario/login', methods=['POST'])
-def login():
+def login_usuario():
     try:
         data = request.get_json()
         
@@ -64,16 +64,58 @@ def login():
 
 @user_blueprint.route('/usuario/logins_protegidos', methods=['GET'])
 @token_required
-def get_user_protegidas():
-    user_service = UserService()
-    user = user_service.criar_usuario()
-    return jsonify({"userario": user})
+def pegar_usario_protegidas():
+    try:
+        # O token_required já validou o token, mas vamos extrair novamente para exemplo
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"erro": "Cabeçalho de autorização faltando"}), 401
+        
+        # CORREÇÃO AQUI: Usar split() com parênteses
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return jsonify({"erro": "Formato de token inválido"}), 401
+        
+        token = parts[1]
+        auth_service = AuthService()
+        payload = auth_service.verificar_token(token)
+        
+        if not payload:
+            return jsonify({"erro": "Token inválido ou expirado"}), 401
+            
+        user_id = payload.get('usuario_id')
+        if not user_id:
+            return jsonify({"erro": "ID de usuário não encontrado no token"}), 400
+        
+        user_service = UserService()
+        user = user_service.obter_usuario_por_id(user_id)
+        
+        if not user:
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+            
+        return jsonify({
+            "mensagem": "Acesso autorizado",
+            "usuario": user,
+            "token_info": {
+                "user_id": user_id,
+                "expira_em": payload.get('exp')
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Erro detalhado: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "erro": "Erro interno no servidor",
+            "detalhes": str(e)  # Isso ajuda no debug (remova em produção)
+        }), 500
+    
 
 
 
 # route usuario/atualizar
 @user_blueprint.route('/usuario/atualizar/<int:user_id>', methods=['PUT'])
-def update_user(user_id):
+def atualizar_usuario(user_id):
      try:
         
         novos_dados = request.json

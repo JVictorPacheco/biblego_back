@@ -12,6 +12,7 @@ class AuthService:
         self.secret_key = "pythonjwt"
         self.algorithm = "HS256"
 
+
     def login(self, email, senha):
         """Lógica principal de autenticação"""
         # 1. Validação das credenciais
@@ -32,6 +33,8 @@ class AuthService:
             "usuario": usuario
         }
 
+
+
     def _validar_senha(self, senha_fornecida, senha_hash):
         """Validação encapsulada da senha"""
         try:
@@ -43,6 +46,8 @@ class AuthService:
             print(f"Erro na validação de senha: {e}")
             return False
 
+
+
     def gerar_token(self, usuario_id):
         """Geração de token JWT"""
         payload = {
@@ -50,6 +55,22 @@ class AuthService:
             "exp": datetime.utcnow() + timedelta(hours=2)
         }
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
+    
+    
+    
+    def verificar_token(self, token):
+        """Verifica se o token JWT é válido e retorna o payload"""
+        try:
+            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            return payload
+        except jwt.ExpiredSignatureError:
+            print("Token expirado")
+            return None
+        except jwt.InvalidTokenError:
+            print("Token inválido")
+            return None
+        
+        
     
     
     

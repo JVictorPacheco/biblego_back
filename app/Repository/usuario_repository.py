@@ -11,15 +11,16 @@ class UsuarioRepository:
         
      try:
             db = get_db_connection()
-            senha_concat = usuario.email + usuario.firebase_uid
-            senha_hash = bcrypt.hashpw(senha_concat.encode('utf-8') , bcrypt.gensalt())
+            # senha_concat = usuario.email + usuario.firebase_uid
+            # print(senha_concat)
+            senha_hash = bcrypt.hashpw(usuario.senha.encode('utf-8') , bcrypt.gensalt())
             
             sql = """INSERT INTO usuarios
                     (nome, email, telefone, cidade, estado, endereco,
-                    sexo, data_nascimento, senha)
+                    sexo, data_nascimento, senha, firebase_uid)
                     VALUES
                     (%(nome)s, %(email)s, %(telefone)s, %(cidade)s, %(estado)s,
-                    %(endereco)s, %(sexo)s, %(data_nascimento)s, %(senha)s)
+                    %(endereco)s, %(sexo)s, %(data_nascimento)s, %(senha)s, %(firebase_uid)s)
                     RETURNING id"""
             
             params = {
@@ -31,7 +32,8 @@ class UsuarioRepository:
                 "endereco": usuario.endereco,
                 "sexo": usuario.sexo,
                 "data_nascimento": usuario.data_nascimento,
-                "senha": senha_hash.decode('utf-8')
+                "senha": senha_hash.decode('utf-8'),
+                "firebase_uid": usuario.firebase_uid
             }
 
             db.cursor.execute(sql, params)
@@ -44,54 +46,6 @@ class UsuarioRepository:
             db.connection.rollback()
             raise e
         
-        
-        
-        # #print("criar_usuario -> ", usuario)
-        # try:
-        #     db = get_db_connection()
-        #     senha_hash = bcrypt.hashpw(usuario.senha.encode('utf-8'), bcrypt.gensalt())
-        #     print("hash -> ", senha_hash)
-        #     sql = """INSERT INTO usuarios
-        #             (nome, email, telefone, cidade, estado, endereco, is_premium,
-        #             data_assinatura_premium, plano_premium, data_final_premium, idade,
-        #             sexo, data_nascimento, status_conta_usuario, notificacao_habilitada,
-        #             termos_aceitos, cod_verificacao, url_foto, senha)
-        #             VALUES (%(nome)s, %(email)s, %(telefone)s, %(cidade)s, %(estado)s, 
-        #             %(endereco)s, %(is_premium)s, %(data_assinatura_premium)s, 
-        #             %(plano_premium)s, %(data_final_premium)s, %(idade)s, %(sexo)s, 
-        #             %(data_nascimento)s, %(status_conta_usuario)s, %(notificacao_habilitada)s,
-        #             %(termos_aceitos)s, %(cod_verificacao)s, %(url_foto)s, %(senha)s)"""
-
-        #     params = {
-        #         "nome": usuario.nome,
-        #         "email": usuario.email,
-        #         "telefone": usuario.telefone,
-        #         "cidade": usuario.cidade,
-        #         "estado": usuario.estado,
-        #         "endereco": usuario.endereco,
-        #         "is_premium": usuario.is_premium,
-        #         "data_assinatura_premium": usuario.data_assinatura_premium,
-        #         "plano_premium": usuario.plano_premium,
-        #         "data_final_premium": usuario.data_final_premium,
-        #         "idade": usuario.idade, "sexo": usuario.sexo,
-        #         "data_nascimento": usuario.data_nascimento,
-        #         "status_conta_usuario": usuario.status_conta_usuario,
-        #         "notificacao_habilitada": usuario.notificacao_habilitada,
-        #         "termos_aceitos": usuario.termos_aceitos,
-        #         "cod_verificacao": usuario.cod_verificacao,
-        #         "url_foto": usuario.url_foto,
-        #         "senha": senha_hash.decode('utf-8')  #usuario.senha 
-        #     }
-
-        #     # print(" sql -> ", sql)
-        #     # print(" params", params)
-        #     db.cursor.execute(sql, params)  # Substitua db.session.execute por db.cursor.execute
-        #     db.connection.commit()  # Commit correto
-        #     return None  # Retorno explícito para sucesso
-
-        # except Exception as e:
-        #     db.connection.rollback()
-        #     return {"erro": str(e)}, 500
 
 
     def buscar_usuario_por_email(self, email):
@@ -136,8 +90,6 @@ class UsuarioRepository:
         except Exception as e:
             print(f"Erro ao buscar senha: {e}")
             return None
-    
-    
     
     
     
@@ -195,9 +147,7 @@ class UsuarioRepository:
             db.connection.rollback()
         return {"erro": f"Falha na atualização: {str(e)}"}, 500
             
-            
-            
-            
+                     
     #@staticmethod
     def usuario_existe(user_id):
         """Verifica se um usuário existe sem trazer todos os dados"""
@@ -236,7 +186,35 @@ class UsuarioRepository:
 
 
 
-    
 
-
-    
+    def buscar_usuario_por_id(self, user_id):
+        """Buscando usuario por id"""
+        
+        try: 
+            db = get_db_connection()
+            sql =     """
+                SELECT id, nome, email, url_foto, endereco, sexo, 
+                is_premium, data_assinatura_premium, plano_premium, 
+                data_final_premium FROM usuarios WHERE id = %(id)s
+                      """
+        
+            db.cursor.execute(sql, {'id': user_id})
+            usuario_data = db.cursor.fetchone()
+            
+            if usuario_data:
+                
+                
+                campos = [
+                'id', 'nome', 'email', 'url_foto', 'endereco', 'sexo',
+                'is_premium', 'data_assinatura_premium', 'plano_premium',
+                'data_final_premium'
+            ]
+                
+                return dict(zip(campos, usuario_data))
+            return None
+        except Exception as e:
+            print(f"Erro ao buscar usuário: {e}")
+            return None
+                
+                
+                
