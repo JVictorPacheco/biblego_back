@@ -101,5 +101,18 @@ class UserService:
         # Implementação depende do seu repositório
         # Exemplo básico:
         return self.user_repository.buscar_usuario_por_id(user_id)
+    
+    
+    
+    
+    def obter_usuario_por_email(self, email: str) -> dict:
+       print(f"[DEBUG] Buscando usuário por email: {email}")
+       usuario = self.user_repository.buscar_usuario_por_email(email)
+       print(f"[DEBUG] Resultado da busca: {usuario}")
+       if not usuario:
+            raise ValueError("Usuário não encontrado")
+        
+       usuario.pop('senha_hash', None)
+       return usuario
 
 

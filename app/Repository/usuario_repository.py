@@ -56,7 +56,7 @@ class UsuarioRepository:
             sql = """
             SELECT id, nome, email, url_foto, endereco, sexo, 
             is_premium, data_assinatura_premium, plano_premium, 
-            data_final_premium FROM usuarios WHERE email = %(email)s 
+            data_final_premium, firebase_uid, senha FROM usuarios WHERE email = %(email)s 
             """
             db.cursor.execute(sql, {'email': email})
             usuario_data = db.cursor.fetchone()
@@ -66,9 +66,9 @@ class UsuarioRepository:
              campos = [
                 'id', 'nome', 'email', 'url_foto', 'endereco', 'sexo',
                 'is_premium', 'data_assinatura_premium', 'plano_premium',
-                'data_final_premium'
+                'data_final_premium', 'firebase_uid', 'senha_hash'
             ]
-            
+             
              return dict(zip(campos, usuario_data))
             return None
         except Exception as e:
@@ -161,6 +161,8 @@ class UsuarioRepository:
         except Exception:
             return False
 
+
+
    # @staticmethod
     def deletar_usuario(user_id):
         """Deleta um usuário permanentemente"""
@@ -214,6 +216,23 @@ class UsuarioRepository:
             return None
         except Exception as e:
             print(f"Erro ao buscar usuário: {e}")
+            return None
+        
+        
+        
+        
+    def buscar_firebase_uid_por_email(self, email):
+        """Busca APENAS o firebase_uid para geração de token"""
+        try:
+            db = get_db_connection()
+            db.cursor.execute(
+                "SELECT firebase_uid FROM usuarios WHERE email = %(email)s",
+                {'email': email}
+            )
+            result = db.cursor.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            print(f"Erro ao buscar firebase_uid: {e}")
             return None
                 
                 
