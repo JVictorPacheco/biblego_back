@@ -2,8 +2,8 @@ from flask import Blueprint, jsonify, request, make_response
 from werkzeug.exceptions import BadRequest, Unauthorized
 from app.Service.user_service import UserService
 from app.Service.auth_service import AuthService
+from app.Service.token_service import TokenService
 from app.Utils.jwt_utils import token_required
-from app.Repository.usuario_repository import UsuarioRepository
 import bcrypt
 import traceback
 
@@ -66,48 +66,47 @@ def login_usuario():
 @token_required
 def pegar_usario_protegidas():
     try:
-        # O token_required já validou o token, mas vamos extrair novamente para exemplo
+        print("\n[DEBUG] Iniciando rota protegida")  # Log de início
+        
         auth_header = request.headers.get('Authorization')
+        print(f"[DEBUG] Authorization header: {auth_header}")  # Log do header
+        
         if not auth_header:
             return jsonify({"erro": "Cabeçalho de autorização faltando"}), 401
         
-        # CORREÇÃO AQUI: Usar split() com parênteses
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != 'bearer':
-            return jsonify({"erro": "Formato de token inválido"}), 401
+        token = auth_header.split()[1]
+        print(f"[DEBUG] Token recebido: {token}")  # Log do token
         
-        token = parts[1]
-        auth_service = AuthService()
-        payload = auth_service.verificar_token(token)
+        payload = TokenService().verificar_token(token)
+        print(f"[DEBUG] Payload decodificado: {payload}")  # Log do payload
         
         if not payload:
             return jsonify({"erro": "Token inválido ou expirado"}), 401
             
-        user_id = payload.get('usuario_id')
-        if not user_id:
-            return jsonify({"erro": "ID de usuário não encontrado no token"}), 400
+        email = payload['email']
+        print(f"[DEBUG] Email extraído do token: {email}")  # Log do email
         
-        user_service = UserService()
-        user = user_service.obter_usuario_por_id(user_id)
+        user = UserService().obter_usuario_por_email(email)
+        print(f"[DEBUG] Usuário encontrado: {bool(user)}")  # Log se usuário foi encontrado
         
-        if not user:
-            return jsonify({"erro": "Usuário não encontrado"}), 404
-            
         return jsonify({
             "mensagem": "Acesso autorizado",
             "usuario": user,
             "token_info": {
-                "user_id": user_id,
+                "email": email,
+                "firebase_uid": payload.get('firebase_uid'),
                 "expira_em": payload.get('exp')
             }
         }), 200
         
     except Exception as e:
-        print(f"Erro detalhado: {str(e)}")
+        print(f"\n[ERRO] Detalhes do erro:")
+        print(f"Tipo: {type(e)}")
+        print(f"Mensagem: {str(e)}")
         print(traceback.format_exc())
+        
         return jsonify({
-            "erro": "Erro interno no servidor",
-            "detalhes": str(e)  # Isso ajuda no debug (remova em produção)
+            "erro": "Erro interno no servidor"
         }), 500
     
 
