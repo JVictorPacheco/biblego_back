@@ -95,7 +95,7 @@ def pegar_usario_protegidas():
             "token_info": {
                 "email": email,
                 "firebase_uid": payload.get('firebase_uid'),
-                "expira_em": payload.get('exp')
+                "expira_em": payload.get('expiration')
             }
         }), 200
         
