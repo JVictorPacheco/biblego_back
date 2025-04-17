@@ -1,6 +1,6 @@
 from app.Repository.usuario_repository import UsuarioRepository
 from app.Models.usuario import Usuario
-from werkzeug.security import generate_password_hash
+# from werkzeug.security import generate_password_hash
 
 
 class UserService:
