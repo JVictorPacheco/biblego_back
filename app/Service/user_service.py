@@ -114,5 +114,25 @@ class UserService:
         
        usuario.pop('senha_hash', None)
        return usuario
+   
+   
+   
+   
+    def deletar_usuario(user_id):
+        """
+        Valida e deleta um usuário
+        :param user_id: ID do usuário (obtido do token JWT)
+        :return: Tuple (dict, int) - (mensagem, status_code)
+        """
+        # Validação básica do ID
+        if not isinstance(user_id, int) or user_id <= 0:
+            return {"Erro": "ID inválido"}, 400
+
+        try:
+            # Deleção efetiva
+            return UsuarioRepository.deletar_usuario(user_id)
+            
+        except Exception as e:
+            return {"erro": f"Falha ao deletar usuário: {str(e)}"}, 500
 
 

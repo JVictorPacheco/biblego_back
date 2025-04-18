@@ -18,7 +18,7 @@ class TokenService:
         payload = {
             "email": email,
             "firebase_uid": firebase_uid,
-            "expiration": datetime.utcnow() + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
+            "exp": datetime.utcnow() + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
         }
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
     

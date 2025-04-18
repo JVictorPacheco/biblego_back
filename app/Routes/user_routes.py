@@ -95,7 +95,7 @@ def pegar_usario_protegidas():
             "token_info": {
                 "email": email,
                 "firebase_uid": payload.get('firebase_uid'),
-                "expira_em": payload.get('expiration')
+                "expira_em": payload.get('exp')
             }
         }), 200
         
@@ -129,17 +129,27 @@ def atualizar_usuario(user_id):
     
     
 
-@user_blueprint.route('/usuario/deletar/<int:user_id>', methods=['DELETE'])
-def deletar_usuario(user_id):
+@user_blueprint.route('/usuario/deletar', methods=['DELETE'])
+@token_required
+def deletar_usuario():
     """
-    Endpoint para deletar um usuário
+    Endpoint para deletar o usuário logado
     """
     try:
-        resultado = UserService.deletar_usuario(user_id)
+        # Obtém o token do header
+        token = request.headers.get('Authorization').split()[1]
+        
+        # Obtém o usuário completo a partir do token
+        auth_service = AuthService()
+        usuario = auth_service.obter_usuario_por_token(token)
+        
+        # Chama o service para deletar usando o ID do usuário obtido do token
+        resultado = UserService.deletar_usuario(usuario["id"])
+        
         return jsonify(resultado[0]), resultado[1]
+        
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
-
         
 
     
