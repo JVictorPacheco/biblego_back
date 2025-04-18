@@ -18,7 +18,7 @@ class TokenService:
         payload = {
             "email": email,
             "firebase_uid": firebase_uid,
-            "exp": datetime.utcnow() + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
+            "expiration": datetime.utcnow() + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
         }
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
     
@@ -40,3 +40,13 @@ class TokenService:
             "email": self.email,
             "firebase_uid": self.firebase_uid
         }
+        
+        
+        
+    def obter_identidade_usuario(self, token: str) -> dict:
+        """Obtém a identidade do usuário a partir do token"""
+        payload = self.verificar_token(token)
+        return {
+            "email": payload["email"],
+            "firebase_uid": payload["firebase_uid"]
+    }
