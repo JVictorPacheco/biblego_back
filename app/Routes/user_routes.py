@@ -133,23 +133,14 @@ def atualizar_usuario(user_id):
 @token_required
 def deletar_usuario():
     """
-    Endpoint para deletar o usuário logado
+    Endpoint para deletar um usuário
     """
     try:
-        # Obtém o token do header
-        token = request.headers.get('Authorization').split()[1]
-        
-        # Obtém o usuário completo a partir do token
-        auth_service = AuthService()
-        usuario = auth_service.obter_usuario_por_token(token)
-        
-        # Chama o service para deletar usando o ID do usuário obtido do token
-        resultado = UserService.deletar_usuario(usuario["id"])
-        
+        resultado = UserService.deletar_usuario(user_id)
         return jsonify(resultado[0]), resultado[1]
-        
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
+
         
 
     

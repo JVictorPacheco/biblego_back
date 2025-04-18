@@ -13,6 +13,7 @@ class AuthService:
         self.usuario_repo = UsuarioRepository()
 
 
+
     def login(self, email, senha):
         
         """Autentica usuário e retorna token"""
@@ -33,6 +34,7 @@ class AuthService:
         }
         
         
+        
     def validar_credenciais(self, email: str, senha: str):
         """Valida email e senha"""
         usuario = self.usuario_repo.buscar_usuario_por_email(email)
@@ -48,11 +50,10 @@ class AuthService:
 
 
 
-
     def _validar_senha(self, senha: str, senha_hash: str) -> bool:
         return bcrypt.checkpw(senha.encode('utf-8'), senha_hash.encode('utf-8'))
-
-
+        
+        
 
 
 
