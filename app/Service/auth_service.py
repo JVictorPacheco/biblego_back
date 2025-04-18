@@ -51,8 +51,19 @@ class AuthService:
 
     def _validar_senha(self, senha: str, senha_hash: str) -> bool:
         return bcrypt.checkpw(senha.encode('utf-8'), senha_hash.encode('utf-8'))
-        
-        
+
+
+
+
+
+    def obter_usuario_por_token(self, token: str) -> dict:
+        """Obtém usuário completo a partir do token JWT"""
+        payload = self.token_service.obter_identidade_usuario(token)
+        usuario = self.usuario_repo.buscar_usuario_por_firebase_uid(payload["firebase_uid"])
+        if not usuario:
+            raise Unauthorized("Usuário não encontrado")
+        return usuario        
+            
 
         
 

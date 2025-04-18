@@ -237,3 +237,29 @@ class UsuarioRepository:
                 
                 
                 
+    def buscar_usuario_por_firebase_uid(self, firebase_uid: str) -> dict:
+        """Busca todos os dados do usuário pelo firebase_uid"""
+        try:
+            with DatabaseConnection(**DB_CONFIG) as db:
+                db.cursor.execute(
+                    """SELECT id, email, nome, firebase_uid 
+                    FROM usuarios 
+                    WHERE firebase_uid = %(firebase_uid)s""",
+                    {'firebase_uid': firebase_uid}
+                )
+                result = db.cursor.fetchone()
+                
+                if not result:
+                    return None
+                    
+                # Converte para dicionário
+                return {
+                    "id": result[0],
+                    "email": result[1],
+                    "nome": result[2],
+                    "firebase_uid": result[3]
+                }
+                
+        except Exception as e:
+            print(f"Erro ao buscar usuário por firebase_uid: {e}")
+            raise  # Re-lança a exceção para ser tratada no service
