@@ -1,6 +1,6 @@
 from app.Repository.usuario_repository import UsuarioRepository
 from app.Models.usuario import Usuario
-# from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash
 
 
 class UserService:
@@ -33,40 +33,60 @@ class UserService:
     }
     
     REGRAS_ESPECIAIS = {
-        'senha': lambda v: len(v) >= 8  # Validação personalizada
+       'senha': lambda v: len(v) >= 8  # Validação personalizada
+       #  'email': lambda x: re.match(r"[^@]+@[^@]+\.[^@]+", x),
+       #  'status_conta_usuario': lambda x: x.lower() in ['ativo', 'inativo', 'pendente']
+        
     }
     
-    def atualizar_usuario(user_id, novos_dados):
-        if not isinstance(user_id, int) or user_id <= 0:
-            return {"Erro": "ID Inválido"}, 400
+    def atualizar_usuario(self, user_id, novos_dados):
         
+        """
+        Valida e atualiza os dados do usuário
+        :param user_id: ID do usuário (obtido do token JWT)
+        :param novos_dados: Dicionário com campos para atualização
+        :return: Tuple (dict, int) - (resposta, status_code)
+        """
+        # 1. Validação do ID (agora vindo do token)
+        if not isinstance(user_id, int) or user_id <= 0:
+            return {"Erro": "ID de usuário inválido"}, 400
+
+        # 2. Filtra campos permitidos
         dados_validados = {
             campo: valor
-        for campo, valor in novos_dados.items()
-                if campo in UserService.CAMPOS_PERMITIDOS
-        }  
-        
-        
-        for campo, valor in dados_validados.items():
-         if campo in UserService.REGRAS_ESPECIAIS:
-            if not UserService._validar_campo(campo, valor):
-                return {"Erro": f"Valor inválido para {campo}"}, 400
-        
-        # if campo == 'senha':
-        #     valor = generate_password_hash(valor)
-        
-        if campo == 'status_conta_usuario' and isinstance(valor, str):
-            dados_validados[campo] = valor.capitalize()
-            
-            
+            for campo, valor in novos_dados.items()
+            if campo in UserService.CAMPOS_PERMITIDOS
+        }
+
+        # 3. Verifica se há campos válidos para atualização
         if not dados_validados:
-         return {"Erro": "Nenhum campo válido para atualização"}, 400
-        
-        
-        try: 
+            return {"Erro": "Nenhum campo permitido para atualização"}, 400
+
+        # 4. Validações específicas por campo
+        for campo, valor in dados_validados.items():
+            # 4.1 Valida campos com regras especiais
+            if campo in UserService.REGRAS_ESPECIAIS:
+                if not UserService._validar_campo(campo, valor):
+                    return {"Erro": f"Valor inválido para o campo {campo}"}, 400
+            
+            # 4.2 Tratamento especial para senha (se necessário)
+            if campo == 'senha':
+                dados_validados[campo] = generate_password_hash(valor)  # Descomente se usar
+                
+            # 4.3 Formatação de campos específicos
+            if campo == 'status_conta_usuario' and isinstance(valor, str):
+                dados_validados[campo] = valor.capitalize()
+
+        # 5. Bloqueia campos sensíveis (proteção adicional)
+        campos_protegidos = ['id', 'firebase_uid', 'data_criacao']
+        if any(campo in dados_validados for campo in campos_protegidos):
+            return {"Erro": "Campos protegidos não podem ser alterados"}, 403
+
+        # 6. Executa a atualização no repositório
+        try:
             return UsuarioRepository().atualizar_usuario(user_id, dados_validados)
         except Exception as e:
-            return {"erro": str(e)}, 500
+            return {"erro": f"Falha ao atualizar usuário: {str(e)}"}, 500
     
     
     

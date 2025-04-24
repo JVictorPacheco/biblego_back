@@ -1,6 +1,7 @@
 import jwt
 from datetime import datetime, timedelta
 from app.Core.security_config import SecurityConfig
+from datetime import datetime, timezone  # Adicione timezone
 
 
 
@@ -18,7 +19,8 @@ class TokenService:
         payload = {
             "email": email,
             "firebase_uid": firebase_uid,
-            "exp": datetime.utcnow() + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
+            #"exp": datetime.utcnow() + timedelta(hours=SecurityConfig.TOKEN_EXPIRE_HOURS)
         }
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
     
