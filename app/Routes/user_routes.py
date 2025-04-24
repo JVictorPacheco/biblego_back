@@ -113,21 +113,36 @@ def pegar_usario_protegidas():
 
 
 # route usuario/atualizar
-@user_blueprint.route('/usuario/atualizar/<int:user_id>', methods=['PUT'])
-def atualizar_usuario(user_id):
-     try:
-        
+@user_blueprint.route('/usuario/atualizar', methods=['PUT'])
+@token_required
+def atualizar_usuario():
+    """
+    Endpoint para atualizar o usuário logado
+    """
+    try:
+        token = request.headers.get('Authorization').split()[1]
         novos_dados = request.json
+        
+        
         if not novos_dados:
             return jsonify({"Erro": "Nenhum dado fornecido para atualização"}), 400
         
-        response = UserService.atualizar_usuario(user_id, novos_dados)
-        return jsonify(response[0]), response[1] if isinstance(response, tuple) else 200
-    
-     except Exception as e:
+        
+        auth_service = AuthService()
+        usuario = auth_service.obter_usuario_por_token(token)
+        
+        user_service = UserService()
+        response = user_service.atualizar_usuario(usuario["id"], novos_dados)
+        return jsonify(response[0]), response[1]
+        
+    except Exception as e:
         return jsonify({"erro": str(e)}), 500
+        
     
     
+
+
+
 
 @user_blueprint.route('/usuario/deletar', methods=['DELETE'])
 @token_required
