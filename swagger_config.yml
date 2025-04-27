@@ -1,0 +1,12 @@
+# swagger_config.yml (na raiz do projeto)
+headers:
+  - name: Authorization
+    description: Token JWT
+    type: string
+    required: true
+    default: "Bearer "
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header

@@ -33,6 +33,44 @@ def criar_usuario():
 
 @user_blueprint.route('/usuario/login', methods=['POST'])
 def login_usuario():
+    """
+    Autentica um usuário e retorna um token JWT
+    ---
+    tags:
+      - Usuários
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - senha
+          properties:
+            email:
+              type: string
+              example: "usuario@exemplo.com"
+            senha:
+              type: string
+              example: "senha123"
+    responses:
+      200:
+        description: Login bem-sucedido
+        schema:
+          type: object
+          properties:
+            token:
+              type: string
+            usuario:
+              type: object
+      400:
+        description: Dados inválidos
+      401:
+        description: Credenciais incorretas
+    """
+    
+    
     try:
         data = request.get_json()
         
@@ -62,9 +100,39 @@ def login_usuario():
         return jsonify({"error": "Erro interno"}), 500
 
 
-@user_blueprint.route('/usuario/logins_protegidos', methods=['GET'])
+
+
+
+
+
+@user_blueprint.route('/usuario/login_protegido', methods=['GET'])
 @token_required
-def pegar_usario_protegidas():
+def logins_protegidos():
+    """
+    Acesso a dados protegidos via token JWT
+    ---
+    tags:
+      - Usuários
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Dados do usuário autenticado
+        schema:
+          type: object
+          properties:
+            mensagem:
+              type: string
+            usuario:
+              type: object
+            token_info:
+              type: object
+      401:
+        description: Token inválido/expirado
+    """
+    
+    
+    
     try:
         print("\n[DEBUG] Iniciando rota protegida")  # Log de início
         
