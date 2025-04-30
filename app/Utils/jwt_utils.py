@@ -7,11 +7,26 @@ from app.Service.token_service import TokenService
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = _extrair_token(request)
-        payload = TokenService().verificar_token(token)
-        request.token_payload = payload  # Injeta payload na request
-        return f(*args, **kwargs)
+        try:
+            token = _extrair_token(request)
+            payload = TokenService().verificar_token(token)
+            request.token_payload = payload
+            return f(*args, **kwargs)
+            
+        except ValueError as e:
+            # Erros específicos de token inválido
+            return jsonify({"erro": str(e)}), 401
+        except Exception as e:
+            # Outros erros inesperados
+            return jsonify({"erro": "Erro de autenticação"}), 500
     return decorated
+
+    # def decorated(*args, **kwargs):
+    #     token = _extrair_token(request)
+    #     payload = TokenService().verificar_token(token)
+    #     request.token_payload = payload  # Injeta payload na request
+    #     return f(*args, **kwargs)
+    # return decorated
 
 def _extrair_token(request) -> str:
     """Extrai token do header Authorization"""
