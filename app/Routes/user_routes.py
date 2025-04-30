@@ -4,7 +4,7 @@ from app.Service.user_service import UserService
 from app.Service.auth_service import AuthService
 from app.Service.token_service import TokenService
 from app.Utils.jwt_utils import token_required
-import bcrypt
+
 import traceback
 
 user_blueprint = Blueprint('usuario', __name__)
@@ -102,9 +102,6 @@ def login_usuario():
 
 
 
-
-
-
 @user_blueprint.route('/usuario/login_protegido', methods=['GET'])
 @token_required
 def logins_protegidos():
@@ -185,6 +182,47 @@ def logins_protegidos():
 @token_required
 def atualizar_usuario():
     """
+    Atualiza dados do usuário logado
+    ---
+    tags:
+      - Usuários
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: header
+        name: Authorization
+        required: true
+        type: string
+        default: "Bearer {seu_token_jwt}"
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            nome:
+              type: string
+              example: "Novo Nome"
+            email:
+              type: string
+              example: "novo@email.com"
+    responses:
+      200:
+        description: Dados atualizados com sucesso
+        schema:
+          type: object
+          properties:
+            mensagem:
+              type: string
+              example: "Dados atualizados"
+      401:
+        description: Token inválido ou expirado
+      403:
+        description: Acesso não autorizado
+    """
+    
+    
+    """
     Endpoint para atualizar o usuário logado
     """
     try:
@@ -216,8 +254,47 @@ def atualizar_usuario():
 @token_required
 def deletar_usuario():
     """
-    Endpoint para deletar o usuário logado
+    Deleta o usuário logado
+    ---
+    tags:
+      - Usuários
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: header
+        name: Authorization
+        required: true
+        type: string
+        default: "Bearer {seu_token_jwt}"
+        description: Token JWT obtido no login
+    responses:
+      200:
+        description: Usuário deletado com sucesso
+        schema:
+          type: object
+          properties:
+            mensagem:
+              type: string
+              example: "Usuário deletado com sucesso"
+      401:
+        description: Token inválido ou expirado
+        schema:
+          type: object
+          properties:
+            erro:
+              type: string
+              example: "Token inválido"
+      500:
+        description: Erro interno no servidor
+        schema:
+          type: object
+          properties:
+            erro:
+              type: string
+              example: "Falha ao deletar usuário"
     """
+    
+    
     try:
         # Obtém o token do header
         token = request.headers.get('Authorization').split()[1]

@@ -9,12 +9,19 @@ def create_app():
     app_run = Flask(__name__)
     
     app_run.config['SWAGGER'] = {
-        'title': 'API BibleGo',
-        'uiversion': 3,
-        'specs_route': '/api-docs/',
-        'static_url_path': '/flasgger-static',
-        'config_file': os.path.join(os.path.dirname(__file__), '..', 'swagger_config.yml')  # Caminho para o YAML
-    }
+    'title': 'API BibleGo',
+    'uiversion': 3,
+    'specs_route': '/api-docs/',
+    'securityDefinitions': {
+        'BearerAuth': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'Insira o token JWT no formato: Bearer {seu_token}'
+        }
+    },
+    'security': [{'BearerAuth': []}]
+}
     
     Swagger(app_run)
     app_run.register_blueprint(user_blueprint)

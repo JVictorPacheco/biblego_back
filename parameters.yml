@@ -1,0 +1,8 @@
+parameters:
+  AuthorizationHeader:
+    name: Authorization
+    in: header
+    description: Token JWT no formato Bearer
+    required: true
+    type: string
+    default: "Bearer "
