@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import unittest
 from unittest.mock import MagicMock, patch
 from app.Repository.usuario_repository import UsuarioRepository
+from app.Service.user_service import UserService
 
 
 class MockUsuario:
@@ -28,6 +29,9 @@ class MockUsuario:
         self.cod_verificacao = "ABC123"
         self.url_foto = "http://example.com/foto.jpg"
         self.senha = "senha123"
+        self.firebase_uid = "mock_firebase_uid123"
+        
+        
 
 class TestUsuarioRepository(unittest.TestCase):
     def setUp(self):
@@ -55,32 +59,46 @@ class TestUsuarioRepository(unittest.TestCase):
     
     def test_criar_usuario_sucesso(self):
         """Testa a criação de usuário com sucesso"""
-        # Chama o método sob teste
-        resultado = UsuarioRepository.criar_usuario(self, self.usuario)
         
-        # Verifica se o execute foi chamado
-        self.mock_cursor.execute.assert_called()
         
-        # Verifica se o commit foi chamado
-        self.mock_connection.commit.assert_called()
+        self.mock_cursor.fetchone.return_value = [123]
         
-        # Verifica o retorno esperado
-        self.assertIsNone(resultado)
+        self.usuario.firebase_uid = "test_uid"
+        
+        with patch('bcrypt.hashpw') as mock_hash:
+            mock_hash.return_value = b'hashed_password'
+            
+            # Execução
+            resultado = UsuarioRepository.criar_usuario(self, self.usuario)
+            
+            # Verificações
+            self.mock_cursor.execute.assert_called_once()
+            self.mock_connection.commit.assert_called_once()
+            self.assertEqual(resultado, 123)
+        
+        
+        
+        
+        
     
-    def test_criar_usuario_falha(self):
-        """Testa o tratamento de erro na criação de usuário"""
-        # Configura o execute para lançar exceção
-        self.mock_cursor.execute.side_effect = Exception("Erro ao executar a query")
+    def test_criar_usuario_falha_no_banco(self):
+        """Testa falha no banco de dados durante criação"""
+        # Configura
+        self.mock_cursor.execute.side_effect = Exception("Erro de conexão com o banco")
         
-        # Chama o método sob teste
-        resultado = UsuarioRepository.criar_usuario(self, self.usuario)
+        # Executa + Verifica
+        with self.assertRaises(Exception) as context:
+            UsuarioRepository.criar_usuario(self, self.usuario)
         
-        # Verifica se rollback foi chamado
-        self.mock_connection.rollback.assert_called()
+        # Asserts
+        self.assertEqual(str(context.exception), "Erro de conexão com o banco")
+        self.mock_connection.rollback.assert_called_once()  # Verifica rollback
+            
+
+            
         
-        # Verifica o retorno esperado
-        self.assertEqual(resultado[0], {"erro": "Erro ao executar a query"})
-        self.assertEqual(resultado[1], 500)
+        
 
 if __name__ == "__main__":
+    
     unittest.main()
