@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, make_response
+from flask import Blueprint, jsonify, request
 from werkzeug.exceptions import BadRequest, Unauthorized
 from app.Service.user_service import UserService
 from app.Service.auth_service import AuthService
@@ -12,6 +12,110 @@ user_blueprint = Blueprint('usuario', __name__)
 
 @user_blueprint.route('/usuario/cadastro', methods=['POST'])
 def criar_usuario():
+  
+  
+    """
+    Cria um novo usuário no sistema
+    ---
+    tags:
+      - Usuários
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - nome
+            - email
+            - telefone
+            - cidade
+            - estado
+            - endereco
+            - sexo
+            - data_nascimento
+            - firebase_uid
+            - senha
+          properties:
+            nome:
+              type: string
+              example: "João Silva"
+              description: Nome completo do usuário
+            email:
+              type: string
+              format: email
+              example: "joao@email.com"
+              description: E-mail válido do usuário
+            telefone:
+              type: string
+              example: "11999999999"
+              description: Telefone com DDD
+            cidade:
+              type: string
+              example: "São Paulo"
+            estado:
+              type: string
+              example: "SP"
+              maxLength: 2
+            endereco:
+              type: string
+              example: "Rua Exemplo, 123"
+            sexo:
+              type: string
+              enum: ["M", "F", "Outro"]
+              example: "M"
+            data_nascimento:
+              type: string
+              format: date
+              example: "1990-01-01"
+              description: Formato YYYY-MM-DD
+            firebase_uid:
+              type: string
+              example: "abc123xyz456"
+              description: ID do usuário no Firebase
+            senha:
+              type: string
+              format: password
+              example: "senhaSegura123"
+              minLength: 8
+    responses:
+      201:
+        description: Usuário criado com sucesso
+        schema:
+          type: object
+          properties:
+            mensagem:
+              type: string
+              example: "Usuário criado com sucesso!"
+            id:
+              type: integer
+              example: 123
+              description: ID do usuário criado
+            status:
+              type: string
+              example: "ativo"
+      400:
+        description: Dados inválidos ou faltantes
+        schema:
+          type: object
+          properties:
+            erro:
+              type: string
+              example: "Campos obrigatórios faltando: email, senha"
+      500:
+        description: Erro interno no servidor
+        schema:
+          type: object
+          properties:
+            erro:
+              type: string
+              example: "Falha ao criar usuário no banco de dados"
+    """
+  
     
     try:
         usuario_data = request.json
@@ -30,150 +134,6 @@ def criar_usuario():
         # return jsonify({"erro": "Falha ao criar usuário"}), 500
         return jsonify({"erro": e}), 500
 
-
-@user_blueprint.route('/usuario/login', methods=['POST'])
-def login_usuario():
-    """
-    Autentica um usuário e retorna um token JWT
-    ---
-    tags:
-      - Usuários
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          required:
-            - email
-            - senha
-          properties:
-            email:
-              type: string
-              example: "usuario@exemplo.com"
-            senha:
-              type: string
-              example: "senha123"
-    responses:
-      200:
-        description: Login bem-sucedido
-        schema:
-          type: object
-          properties:
-            token:
-              type: string
-            usuario:
-              type: object
-      400:
-        description: Dados inválidos
-      401:
-        description: Credenciais incorretas
-    """
-    
-    
-    try:
-        data = request.get_json()
-        
-        # 1. Validação básica do input
-        if not data or 'email' not in data or 'senha' not in data:
-            raise BadRequest("Email e senha são obrigatórios")
-
-        # 2. Delega toda a lógica para o service
-        auth_service = AuthService()
-        resultado = auth_service.login(
-            email=data['email'],
-            senha=data['senha']
-        )
-
-        # 3. Formata a resposta
-        return jsonify({
-            "token": resultado['token'],
-            "usuario": resultado['usuario']
-        }), 200
-
-    except BadRequest as e:
-        return jsonify({"error": str(e)}), 400
-    except Unauthorized as e:
-        return jsonify({"error": str(e)}), 401
-    except Exception as e:
-        print(f"ERRO: {traceback.format_exc()}")
-        return jsonify({"error": "Erro interno"}), 500
-
-
-
-
-@user_blueprint.route('/usuario/login_protegido', methods=['GET'])
-@token_required
-def logins_protegidos():
-    """
-    Acesso a dados protegidos via token JWT
-    ---
-    tags:
-      - Usuários
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Dados do usuário autenticado
-        schema:
-          type: object
-          properties:
-            mensagem:
-              type: string
-            usuario:
-              type: object
-            token_info:
-              type: object
-      401:
-        description: Token inválido/expirado
-    """
-    
-    
-    
-    try:
-        print("\n[DEBUG] Iniciando rota protegida")  # Log de início
-        
-        auth_header = request.headers.get('Authorization')
-        print(f"[DEBUG] Authorization header: {auth_header}")  # Log do header
-        
-        if not auth_header:
-            return jsonify({"erro": "Cabeçalho de autorização faltando"}), 401
-        
-        token = auth_header.split()[1]
-        print(f"[DEBUG] Token recebido: {token}")  # Log do token
-        
-        payload = TokenService().verificar_token(token)
-        print(f"[DEBUG] Payload decodificado: {payload}")  # Log do payload
-        
-        if not payload:
-            return jsonify({"erro": "Token inválido ou expirado"}), 401
-            
-        email = payload['email']
-        print(f"[DEBUG] Email extraído do token: {email}")  # Log do email
-        
-        user = UserService().obter_usuario_por_email(email)
-        print(f"[DEBUG] Usuário encontrado: {bool(user)}")  # Log se usuário foi encontrado
-        
-        return jsonify({
-            "mensagem": "Acesso autorizado",
-            "usuario": user,
-            "token_info": {
-                "email": email,
-                "firebase_uid": payload.get('firebase_uid'),
-                "expira_em": payload.get('exp')
-            }
-        }), 200
-        
-    except Exception as e:
-        print(f"\n[ERRO] Detalhes do erro:")
-        print(f"Tipo: {type(e)}")
-        print(f"Mensagem: {str(e)}")
-        print(traceback.format_exc())
-        
-        return jsonify({
-            "erro": "Erro interno no servidor"
-        }), 500
-    
 
 
 
@@ -246,8 +206,6 @@ def atualizar_usuario():
         
     
     
-
-
 
 
 @user_blueprint.route('/usuario/deletar', methods=['DELETE'])

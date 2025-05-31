@@ -1,8 +1,9 @@
 from flask import Flask
 # from App.Routes.task_routes import task_blueprint
 from  app.Routes.user_routes import user_blueprint
+from app.Routes.auth_routes import auth_blueprint
 from flasgger import Swagger
-import os
+#import os
 
 
 def create_app():
@@ -24,7 +25,9 @@ def create_app():
 }
     
     Swagger(app_run)
+    app_run.register_blueprint(auth_blueprint)
     app_run.register_blueprint(user_blueprint)
+  
     return app_run
     
     
