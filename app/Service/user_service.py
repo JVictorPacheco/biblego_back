@@ -10,18 +10,24 @@ class UserService:
 
     def criar_usuario(self, usuario_data):
 
-            # Validação básica
-        campos_obrigatorios = ['nome', 'email', 'telefone', 'cidade', 
-                              'estado', 'endereco', 'sexo', 
-                              'data_nascimento', 'firebase_uid']
-        
-        for campo in campos_obrigatorios:
-            if campo not in usuario_data:
-                raise ValueError(f"Campo obrigatório faltando: {campo}")
-
-        usuario = Usuario(**usuario_data)
-        return self.user_repository.criar_usuario(usuario)
+            # Validar campos antes de chamar repository
+            campos_obrigatorios = ['nome', 'email', 'telefone', 'cidade', 
+                                'estado', 'endereco', 'sexo', 
+                                'data_nascimento', 'firebase_uid', 'senha']
             
+            
+            for campo in campos_obrigatorios:
+                if not usuario_data.get(campo):
+                    raise ValueError(f"Campo obrigatório faltando: {campo}")
+            
+            
+            # for campo in campos_obrigatorios:
+            #     if campo not in usuario_data:
+            #         raise ValueError(f"Campo obrigatório faltando: {campo}")
+
+            usuario = Usuario(**usuario_data)
+            return self.user_repository.criar_usuario(usuario)
+                
     
     
     # Usados para o def atualizar_usuario
