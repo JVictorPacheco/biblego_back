@@ -1,2 +1,7 @@
 /venv
 /app/Utils/__pycache__
+app/__pycache__/__init__.cpython-313.pyc
+app/Core/__pycache__/security_config.cpython-313.pyc
+app/Routes/__pycache__/user_routes.cpython-313.pyc
+app/Service/__pycache__/token_service.cpython-313.pyc
+app/Service/__pycache__/user_service.cpython-313.pyc
