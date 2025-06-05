@@ -135,11 +135,9 @@ class UserService:
        print(f"[DEBUG] Buscando usuário por email: {email}")
        usuario = self.user_repository.buscar_usuario_por_email(email)
        print(f"[DEBUG] Resultado da busca: {usuario}")
-       if not usuario:
-            raise ValueError("Usuário não encontrado")
-        
-       usuario.pop('senha_hash', None)
-       return usuario
+       if usuario:
+            usuario.pop('senha_hash', None)
+            return usuario
    
    
    

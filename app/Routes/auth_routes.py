@@ -4,6 +4,7 @@ from app.Service.token_service import TokenService
 from werkzeug.exceptions import Unauthorized, BadRequest
 from app.Utils.jwt_utils import token_required
 import traceback
+from app.Service.user_service import UserService
 
 auth_blueprint = Blueprint('auth', __name__)
 
@@ -54,6 +55,10 @@ def login_usuario():
         # 1. Validação básica do input
         if not data or 'email' not in data or 'senha' not in data:
             raise BadRequest("Email e senha são obrigatórios")
+          
+          
+        token = TokenService().gerar_token(['email'],['firebase_uid'])
+        print(f"[DEBUG] Token gerado: {token}")
 
         # 2. Delega toda a lógica para o service
         auth_service = AuthService()
@@ -67,6 +72,8 @@ def login_usuario():
             "token": resultado['token'],
             "usuario": resultado['usuario']
         }), 200
+        
+        
 
     except BadRequest as e:
         return jsonify({"error": str(e)}), 400
@@ -172,7 +179,14 @@ def logins_protegidos():
     tags:
       - Usuários
     security:
-      - Bearer: []
+      - BearerAuth: []
+    parameters:
+      - name: Authorization
+        in: header
+        description: Token JWT no formato 'Bearer <token>'
+        required: true
+        type: string
+        format: string
     responses:
       200:
         description: Dados do usuário autenticado
@@ -186,51 +200,32 @@ def logins_protegidos():
             token_info:
               type: object
       401:
-        description: Token inválido/expirado
+        description: Token inválido/expirado ou cabeçalho de autorização faltando
     """
     
     
-    
     try:
-        print("\n[DEBUG] Iniciando rota protegida")  # Log de início
-        
         auth_header = request.headers.get('Authorization')
-        print(f"[DEBUG] Authorization header: {auth_header}")  # Log do header
-        
-        if not auth_header:
-            return jsonify({"erro": "Cabeçalho de autorização faltando"}), 401
-        
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"erro": "Formato inválido"}), 401
+
         token = auth_header.split()[1]
-        print(f"[DEBUG] Token recebido: {token}")  # Log do token
+        payload = TokenService().verificar_token(token)  # Agora com auditoria corrigida
         
-        payload = TokenService().verificar_token(token)
-        print(f"[DEBUG] Payload decodificado: {payload}")  # Log do payload
-        
-        if not payload:
-            return jsonify({"erro": "Token inválido ou expirado"}), 401
-            
-        email = payload['email']
-        print(f"[DEBUG] Email extraído do token: {email}")  # Log do email
-        
-        user = UserService().obter_usuario_por_email(email)
-        print(f"[DEBUG] Usuário encontrado: {bool(user)}")  # Log se usuário foi encontrado
-        
+        user = UserService().obter_usuario_por_email(payload["email"])
+        if not user:
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+
         return jsonify({
             "mensagem": "Acesso autorizado",
             "usuario": user,
             "token_info": {
-                "email": email,
-                "firebase_uid": payload.get('firebase_uid'),
-                "expira_em": payload.get('exp')
+                "email": payload["email"],
+                "expira_em": payload.get("exp")
             }
         }), 200
-        
+
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 401
     except Exception as e:
-        print(f"\n[ERRO] Detalhes do erro:")
-        print(f"Tipo: {type(e)}")
-        print(f"Mensagem: {str(e)}")
-        print(traceback.format_exc())
-        
-        return jsonify({
-            "erro": "Erro interno no servidor"
-        }), 500
+        return jsonify({"erro": "Erro interno"}), 500
