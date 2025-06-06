@@ -88,83 +88,79 @@ def login_usuario():
     
 @auth_blueprint.route('/auth/refresh', methods=['POST'])
 def refresh():
-        """
-    Renova os tokens de autenticação usando um refresh token válido
-    ---
-    tags:
-      - Autenticação
-    summary: Renova access_token e refresh_token
-    description: Endpoint para renovar os tokens JWT quando o access_token expira. Requer um refresh_token válido obtido durante o login.
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          required:
-            - refresh_token
-          properties:
-            refresh_token:
-              type: string
-              description: Refresh token válido obtido no login
-              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    responses:
-      200:
-        description: Tokens renovados com sucesso
-        schema:
-          type: object
-          properties:
-            access_token:
-              type: string
-              description: Novo token de acesso (JWT)
-            refresh_token:
-              type: string
-              description: Novo refresh token
-            token_type:
-              type: string
-              example: "bearer"
-            expires_in:
-              type: integer
-              description: Tempo de expiração em segundos
-              example: 3600
-      400:
-        description: Dados de entrada inválidos
-        schema:
-          type: object
-          properties:
-            error:
-              type: string
-              example: "Refresh token é obrigatório"
-      401:
-        description: Token inválido ou expirado
-        schema:
-          type: object
-          properties:
-            error:
-              type: string
-              example: "Refresh token expirado ou inválido"
-    security: []
     """
-        try:
-            data = request.get_json()
-            if not data or 'refresh_token' not in data:
-                raise BadRequest("Refresh token é obrigatório")
+      Renova os tokens de autenticação usando um refresh token válido
+      ---
+      tags:
+        - Autenticação
+      summary: Renova access_token e refresh_token
+      description: Endpoint para renovar os tokens JWT quando o access_token expira. Requer um refresh_token válido obtido durante o login.
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required:
+              - refresh_token
+            properties:
+              refresh_token:
+                type: string
+                description: Refresh token válido obtido no login
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        200:
+          description: Tokens renovados com sucesso
+          schema:
+            type: object
+            properties:
+              access_token:
+                type: string
+                description: Novo token de acesso (JWT)
+              refresh_token:
+                type: string
+                description: Novo refresh token
+              token_type:
+                type: string
+                example: "bearer"
+              expires_in:
+                type: integer
+                description: Tempo de expiração em segundos
+                example: 3600
+        400:
+          description: Dados de entrada inválidos
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Refresh token é obrigatório"
+        401:
+          description: Token inválido ou expirado
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Refresh token expirado ou inválido"
+      security: []
+    """
+    try:
+          data = request.get_json()
+          if not data or 'refresh_token' not in data:
+            return jsonify({"error": "Refresh token é obrigatório"}), 400
 
-            auth_service = AuthService()
-            new_tokens = auth_service.refresh_tokens(data['refresh_token'])
+          token_service = TokenService()
+          new_tokens = token_service.refresh_tokens(data['refresh_token'])
 
-            return jsonify({
-                "access_token": new_tokens['access_token'],
-                "refresh_token": new_tokens['refresh_token']
-            }), 200
+          return jsonify(new_tokens), 200
 
-        except BadRequest as e:
-            return jsonify({"error": str(e)}), 400
-        except Unauthorized as e:
-            return jsonify({"error": str(e)}), 401
-        except Exception as e:
-            return jsonify({"error": "Erro interno"}), 500
-        
+    except ValueError as e:
+          return jsonify({"error": str(e)}), 401
+    except Exception as e:
+          print(f"[REFRESH CRITICAL] {traceback.format_exc()}")
+          return jsonify({"error": "Erro interno"}), 500
+          
     
     
     
