@@ -55,7 +55,6 @@ class AuthService:
 
 
 
-
     def obter_usuario_por_token(self, token: str) -> dict:
         """Obtém usuário completo a partir do token JWT"""
         payload = self.token_service.obter_identidade_usuario(token)

@@ -28,15 +28,15 @@ class AuditAction(str, Enum):
     
     
     
-class TokenAuditBase(BaseModel):
+class TokenAuditCreate(BaseModel):
     user_id: str
-    token_type: TokenType
-    action: AuditAction
+    token_type: str
+    action: str
     token_jti: Optional[str] = None
     error: Optional[str] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    additional_data: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict] = None
     
     
     
@@ -52,7 +52,7 @@ class TokenAuditBase(BaseModel):
     
  
 
-class TokenAuditCreate(TokenAuditBase):
+class TokenAuditCreate(TokenAuditCreate):
     def to_db_dict(self):
         data = self.dict()
         if data['additional_data'] is not None:
@@ -60,7 +60,7 @@ class TokenAuditCreate(TokenAuditBase):
         return data
 
 
-class TokenAudit(TokenAuditBase):
+class TokenAudit(TokenAuditCreate):
     id: int
     timestamp: datetime
 

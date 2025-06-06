@@ -5,11 +5,12 @@ from datetime import datetime, timezone  # Adicione timezone
 from typing import Tuple, Optional
 import uuid
 from typing import Optional, Dict, Any
-import json
+from werkzeug.exceptions import Unauthorized
 from app.Config.database import get_db_connection
 from flask import request
 from app.Repository.token_audit_repository import TokenAuditRepository
 from app.Models.token_audit import TokenAuditCreate
+import traceback
 
 
 
@@ -20,31 +21,32 @@ class TokenService:
         self.algorithm = SecurityConfig.ALGORITHM
         # Lembrar que em produção tenho que considerar injetar uma dependencia para auditoria
         self.audit_repository = audit_repository or TokenAuditRepository()
+        print(f"[TOKEN SERVICE] Audit repo initialized: {hasattr(self, 'audit_repository')}")
 
 
 
 
 
-    def _audit_token(self, user_id: str, token_type: str, action: str, 
-                    token_jti: str = None, error: str = None, 
-                   additional_data: Optional[Dict[str, Any]] = None):
-        """Registra ação de token para auditoria"""
-        if not SecurityConfig.TOKEN_AUDIT_ENABLED:
-            return
+    def _audit_token(self, user_id: str, token_type: str, action: str, **kwargs):
+        """Método robusto de auditoria"""
+        try:
+            print(f"[AUDIT ATTEMPT] Action: {action} | User: {user_id}")
             
-        audit_data = TokenAuditCreate(
-            user_id=user_id,
-            token_type=token_type,
-            action=action,
-            token_jti=token_jti,
-            error=error,
-            ip_address=request.remote_addr if request else None,
-            user_agent=request.headers.get('User-Agent') if request else None,
-            additional_data=additional_data
-        )
-        
-        self.audit_repository.create(audit_data)
-
+            audit_data = TokenAuditCreate(
+                user_id=user_id,
+                token_type=token_type,
+                action=action,
+                ip_address=request.remote_addr if hasattr(request, 'remote_addr') else None,
+                user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None,
+                **kwargs
+            )
+            
+            result = self.audit_repository.create(audit_data)
+            print(f"[AUDIT RESULT] {'Success' if result else 'Failed'}")
+            
+        except Exception as e:
+            print(f"[AUDIT ERROR] {str(e)}")
+            raise
 
     
     
@@ -88,48 +90,47 @@ class TokenService:
         
         
     def refresh_tokens(self, refresh_token: str) -> Tuple[str, str]:
-        """Gera novos access e refresh tokens a partir de um refresh token válido"""
+        """Renova access e refresh tokens"""
         try:
-            # 1. Verifica o refresh token
-            payload = self.verificar_token(refresh_token, expected_type="refresh")
+            token_service = TokenService()
+        
+        # Debug do token recebido
+            print(f"[REFRESH INPUT] Token recebido: {refresh_token[:20]}...")
+        
+        # Verifica sem checar expiração primeiro
+            try:
+                payload = jwt.decode(
+                    refresh_token,
+                    token_service.secret_key,
+                    algorithms=[token_service.algorithm],
+                    options={"verify_exp": False}
+                )
+            except Exception as e:
+                print(f"[DECODE ERROR] {str(e)}")
+                raise ValueError("Token inválido")
             
-            # 2. Gera novos tokens
-            new_access_token = self._gerar_access_token(payload["email"], payload["firebase_uid"])
-            new_refresh_token = self._gerar_refresh_token(payload["email"], payload["firebase_uid"])
-            
-            # 3. Auditoria: invalida o token antigo
-            self._audit_token(
-                user_id=payload["firebase_uid"],
-                token_type="refresh",
-                action="invalidate",
-                token_jti=payload.get("jti")
-            )
-            
-            # 4. Auditoria: registra os novos tokens
-            self._audit_token(
-                user_id=payload["firebase_uid"],
-                token_type="access",
-                action="issue",
-                token_jti=new_access_token.get("jti") if isinstance(new_access_token, dict) else None
-            )
-            
-            self._audit_token(
-                user_id=payload["firebase_uid"],
-                token_type="refresh",
-                action="issue",
-                token_jti=new_refresh_token.get("jti") if isinstance(new_refresh_token, dict) else None
-            )
-            
-            return new_access_token, new_refresh_token
-            
+                # Verificação manual da expiração
+            if payload.get('exp'):
+                    exp_time = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
+                    current_time = datetime.now(timezone.utc)
+                    print(f"[EXPIRATION CHECK] Expira: {exp_time} | Agora: {current_time}")
+                    
+            if current_time > exp_time:
+                        # Token expirado mas pode ser aceito para refresh
+                        print("[REFRESH WITH EXPIRED TOKEN] Permitindo renovação")
+                        
+                # Restante da lógica para gerar novos tokens...
+            new_access = token_service._gerar_access_token(payload["email"], payload["firebase_uid"])
+            new_refresh = token_service._gerar_refresh_token(payload["email"], payload["firebase_uid"])
+                
+            return {
+                    "access_token": new_access,
+                    "refresh_token": new_refresh
+                }
+        
         except Exception as e:
-            self._audit_token(
-                user_id=payload.get("firebase_uid") if 'payload' in locals() else None,
-                token_type="refresh",
-                action="verify_failed",
-                error=str(e)
-            )
-        raise
+            print(f"[REFRESH SERVICE ERROR] {str(e)}")
+            raise ValueError(str(e))
         
         
         
@@ -159,65 +160,35 @@ class TokenService:
     
     
     def verificar_token(self, token: str, expected_type: Optional[str] = None) -> dict:
-        """Versão robusta com tratamento completo de erros"""
         try:
-            # Debug inicial
-            print(f"[TOKEN] Iniciando verificação. Chave: {self.secret_key[:5]}... | Algoritmo: {self.algorithm}")
+            # Adicione este debug para ver o token completo
+            print(f"[DEBUG FULL TOKEN] {token}")
             
-            # Decodificação
             payload = jwt.decode(
                 token,
                 self.secret_key,
                 algorithms=[self.algorithm],
-                options={"verify_exp": True}
+                options={"verify_exp": False}  # Primeiro decodifica sem verificar expiração
             )
             
-            # Validação do tipo
+            # Verificação manual da expiração
+            if payload.get('exp') and datetime.now(timezone.utc) > datetime.fromtimestamp(payload['exp'], tz=timezone.utc):
+                print(f"[TOKEN EXPIRADO] Expiração: {payload['exp']} | Now: {datetime.now(timezone.utc).timestamp()}")
+                print(f"[TOKEN EXPIRED] Token expirado em {datetime.fromtimestamp(payload['exp'])}")
+                raise jwt.ExpiredSignatureError("Token expirado")
+            
             if expected_type and payload.get('type') != expected_type:
-                raise ValueError(f"Tipo inválido. Esperado: {expected_type}")
+                raise ValueError("Tipo de token inválido")
                 
-            # Auditoria simplificada
-            try:
-                if hasattr(self, 'audit_repository'):
-                    self._audit_token(
-                        user_id=payload.get("firebase_uid"),
-                        token_type=payload.get("type"),
-                        action="verify",
-                        token_jti=payload.get("jti")
-                    )
-            except Exception as audit_error:
-                print(f"[WARN] Falha na auditoria: {audit_error}")
-
             return payload
-
-        except jwt.ExpiredSignatureError:
-            raise ValueError("Token expirado")
-        except jwt.InvalidTokenError as e:
-            raise ValueError(f"Token inválido: {str(e)}")
+            
         except Exception as e:
-            print(f"[ERROR] Falha crítica na verificação: {str(e)}")
-            raise ValueError("Erro na autenticação")
+            print(f"[VERIFY TOKEN ERROR] {str(e)}")
+            raise
+        except Exception as e:
+            print(f"[TOKEN ERROR] {str(e)}")
+            raise ValueError("Token inválido")
             
-    
-        # except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
-        #     # Registrar falha na verificação
-        #     try:
-        #         invalid_payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm], options={"verify_exp": False})
-        #         self._auditar_token(
-        #             user_id=invalid_payload.get("firebase_uid"),
-        #             token_type=invalid_payload.get("type"),
-        #             action="verify_failed",
-        #             token_jti=invalid_payload.get("jti"),
-        #             error=str(e)
-        #         )
-        #     except:
-        #         pass
-            
-        #     raise ValueError(f"Token inválido: {str(e)}")
-                
-        
-        # except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
-        #     raise ValueError(f"Token inválido: {str(e)}")
         
     def _auditar_token_falha(self, token: str, error_msg: str):
         """Método auxiliar para auditar falhas"""
