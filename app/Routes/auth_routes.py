@@ -6,13 +6,14 @@ from app.Utils.jwt_utils import token_required
 import traceback
 from app.Service.user_service import UserService
 
+
 auth_blueprint = Blueprint('auth', __name__)
 
 
 @auth_blueprint.route('/usuario/login', methods=['POST'])
 def login_usuario():
     """
-    Autentica um usuário e retorna um token JWT
+    Autentica um usuário e retorna tokens JWT
     ---
     tags:
       - Usuários
@@ -38,8 +39,14 @@ def login_usuario():
         schema:
           type: object
           properties:
-            token:
+            access_token:
               type: string
+            refresh_token:
+              type: string
+            token_type:
+              type: string
+            expires_in:
+              type: integer
             usuario:
               type: object
       400:
@@ -48,33 +55,26 @@ def login_usuario():
         description: Credenciais incorretas
     """
     
-    
     try:
         data = request.get_json()
         
         # 1. Validação básica do input
         if not data or 'email' not in data or 'senha' not in data:
             raise BadRequest("Email e senha são obrigatórios")
-          
-          
-        token = TokenService().gerar_token(['email'],['firebase_uid'])
-        print(f"[DEBUG] Token gerado: {token}")
 
-        # 2. Delega toda a lógica para o service
+        # 2. Autentica o usuário (agora já retorna ambos os tokens)
         auth_service = AuthService()
         resultado = auth_service.login(
             email=data['email'],
             senha=data['senha']
         )
-
-        # 3. Formata a resposta
-        return jsonify({
-            "token": resultado['token'],
-            "usuario": resultado['usuario']
-        }), 200
         
-        
+        print(f"[DEBUG] Access token gerado: {resultado['access_token']}")
+        print(f"[DEBUG] Refresh token gerado: {resultado['refresh_token']}")
 
+        # 3. Retorna a resposta diretamente
+        return jsonify(resultado), 200
+        
     except BadRequest as e:
         return jsonify({"error": str(e)}), 400
     except Unauthorized as e:
@@ -119,14 +119,7 @@ def refresh():
                 description: Novo token de acesso (JWT)
               refresh_token:
                 type: string
-                description: Novo refresh token
-              token_type:
-                type: string
-                example: "bearer"
-              expires_in:
-                type: integer
-                description: Tempo de expiração em segundos
-                example: 3600
+                description: Refresh token (mesmo ou novo)
         400:
           description: Dados de entrada inválidos
           schema:
@@ -146,20 +139,20 @@ def refresh():
       security: []
     """
     try:
-          data = request.get_json()
-          if not data or 'refresh_token' not in data:
+        data = request.get_json()
+        if not data or 'refresh_token' not in data:
             return jsonify({"error": "Refresh token é obrigatório"}), 400
 
-          token_service = TokenService()
-          new_tokens = token_service.refresh_tokens(data['refresh_token'])
+        token_service = TokenService()
+        new_tokens = token_service.refresh_tokens(data['refresh_token'])
 
-          return jsonify(new_tokens), 200
+        return jsonify(new_tokens), 200
 
     except ValueError as e:
-          return jsonify({"error": str(e)}), 401
+        return jsonify({"error": str(e)}), 401
     except Exception as e:
-          print(f"[REFRESH CRITICAL] {traceback.format_exc()}")
-          return jsonify({"error": "Erro interno"}), 500
+        print(f"[REFRESH CRITICAL] {traceback.format_exc()}")
+        return jsonify({"error": "Erro interno"}), 500
           
     
     

@@ -5,6 +5,8 @@ from app.Service.token_service import TokenService
 from app.Repository.usuario_repository import UsuarioRepository
 from werkzeug.exceptions import Unauthorized
 import bcrypt
+from flask import current_app, request
+
 
 
 class AuthService:
@@ -15,36 +17,58 @@ class AuthService:
 
     def login(self, email, senha):
         
-        """Autentica usuário e retorna token"""
-        usuario = self.validar_credenciais(email, senha)
-        token = self.token_service.gerar_token(usuario['email'], usuario['firebase_uid'])
-        
-        return {
+        """Autentica usuário e retorna tokens"""
+        try:
+            usuario = self.validar_credenciais(email, senha)
             
-            "token": token,
-            "Mensagem": "Login realizado com sucesso",
-            "usuario": {  # Retorna diretamente o dict
-            "id": usuario["id"],
-            "email": usuario["email"],
-            "nome": usuario.get("nome"),
-            "firebase_uid": usuario["firebase_uid"]
-            # Adicione outros campos necessários
+            # Gera par de tokens (access + refresh)
+            tokens = self.token_service.gerar_par_tokens(usuario['email'], usuario['firebase_uid'])
+            
+            # Decodifica o access token para obter o jti (para auditoria)
+            try:
+                decoded = jwt.decode(
+                    tokens['access_token'], 
+                    self.token_service.secret_key, 
+                    algorithms=[self.token_service.algorithm]
+                )
+                
+                # Auditoria de login (SUCESSO) - já é feita no gerar_tokens, mas podemos manter para login específico
+                self.token_service._audit_token(
+                    user_id=usuario['firebase_uid'],
+                    token_type='login',
+                    action='login_success',
+                    token_jti=decoded['jti'],
+                    ip_address=request.remote_addr if hasattr(request, 'remote_addr') else None,
+                    user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None
+                )
+            except Exception as e:
+                current_app.logger.error(f"Falha ao auditar token de login: {str(e)}")
+            
+            return {
+                "access_token": tokens['access_token'],
+                "refresh_token": tokens['refresh_token'],
+                "token_type": tokens['token_type'],
+                "expires_in": tokens['expires_in'],
+                "mensagem": "Login realizado com sucesso",
+                "usuario": {
+                    "id": usuario["id"],
+                    "email": usuario["email"],
+                    "nome": usuario.get("nome"),
+                    "firebase_uid": usuario["firebase_uid"]
+                }
             }
-        }
-        
-        
-    def validar_credenciais(self, email: str, senha: str):
-        """Valida email e senha"""
-        usuario = self.usuario_repo.buscar_usuario_por_email(email)
-        
-        if not usuario:
-           raise Unauthorized("Credenciais inválidos")
-       
-        senha_hash = usuario.get('senha_hash') or usuario.get('senha')
-        if not senha_hash or not self._validar_senha(senha, senha_hash):
-         raise Unauthorized("Credenciais inválidas")
-    
-        return usuario
+            
+        except Exception as e:
+            # Auditoria de login (FALHA)
+            self.token_service._audit_token(
+                user_id=email,  # Usa email como identificador quando não tem firebase_uid
+                token_type='login',
+                action='login_failed',
+                error=str(e),
+                ip_address=request.remote_addr if hasattr(request, 'remote_addr') else None,
+                user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None
+            )
+            raise
 
 
 
@@ -64,5 +88,33 @@ class AuthService:
         return usuario        
             
 
-        
+
+    def validar_credenciais(self, email, senha):
+        """Valida as credenciais do usuário e retorna os dados se válido"""
+        try:
+            # Busca o usuário pelo email usando seu repository
+            usuario = self.usuario_repo.buscar_usuario_por_email(email)
+            
+            if not usuario:
+                raise Unauthorized("Usuário não encontrado")
+            
+            # Verifica a senha usando seu método existente
+            # O campo no dicionário retornado é 'senha_hash' (conforme o zip no repository)
+            if not self._validar_senha(senha, usuario['senha_hash']):
+                raise Unauthorized("Senha incorreta")
+            
+            # Retorna os dados do usuário no formato esperado
+            return {
+                "id": usuario["id"],
+                "email": usuario["email"], 
+                "nome": usuario.get("nome"),
+                "firebase_uid": usuario["firebase_uid"]
+            }
+            
+        except Unauthorized:
+            # Re-levanta erros de autorização
+            raise
+        except Exception as e:
+            current_app.logger.error(f"Erro na validação de credenciais: {str(e)}")
+            raise Unauthorized("Erro na autenticação")
 
