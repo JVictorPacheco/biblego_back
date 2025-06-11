@@ -1,86 +1,95 @@
-from typing import List, Optional, Dict, Any
-from app.Models.token_audit import TokenAudit, TokenAuditCreate
+from typing import Optional, List
+from flask import current_app
 import json
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from app.Config.database import get_db_connection
+from app.Models.token_audit import TokenAuditCreate, TokenAudit
+from app.Config.audit_database import AuditDatabase
 
-
-
-class TokenAuditRepository: 
+class TokenAuditRepository:
     
- @staticmethod
- def create(audit_data: TokenAuditCreate) -> Optional[TokenAudit]:
-        """Versão com logs detalhados"""
+    @staticmethod
+    def create(audit_data: TokenAuditCreate) -> Optional[TokenAudit]:
+        """Versão final usando pool dedicado"""
         conn = None
+        cursor = None
         try:
-            print(f"[AUDIT] Tentando registrar: {audit_data.action}")  # Log de debug
-            
-            conn = get_db_connection()
-            cur = conn.cursor()
+            conn = AuditDatabase.get_connection()
+            cursor = conn.cursor()
             
             query = """
-                INSERT INTO tokens_audit_log 
-                (user_id, token_type, action, token_jti, error, ip_address, user_agent)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO tokens_audit_log (
+                    user_id, token_type, action, token_jti,
+                    error, ip_address, user_agent
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, timestamp
             """
-            params = (
+            
+            # Prepara os valores garantindo que não são None
+            values = (
                 audit_data.user_id,
                 audit_data.token_type,
                 audit_data.action,
-                audit_data.token_jti,
-                audit_data.error,
-                audit_data.ip_address,
-                audit_data.user_agent
+                audit_data.token_jti if audit_data.token_jti else None,
+                audit_data.error if audit_data.error else None,
+                audit_data.ip_address if audit_data.ip_address else None,
+                audit_data.user_agent if audit_data.user_agent else None
             )
             
-            cur.execute(query, params)
-            result = cur.fetchone()
+            cursor.execute(query, values)
+            result = cursor.fetchone()
             conn.commit()
             
-            print(f"[AUDIT] Registro criado com ID: {result[0] if result else None}")
-            return result
+            if result:
+                return TokenAudit(
+                    id=result[0],
+                    timestamp=result[1],
+                    **audit_data.dict(exclude_none=True)
+                )
+            return None
             
-        except Exception as e:
-            print(f"[AUDIT ERROR] Falha ao registrar: {str(e)}")
+        except psycopg2.Error as e:
+            current_app.logger.error(
+                f"AUDIT DB ERROR | {audit_data.action if hasattr(audit_data, 'action') else 'unknown'} | "
+                f"Code: {e.pgcode} | Error: {e.pgerror}"
+            )
             if conn:
                 conn.rollback()
             return None
+        except Exception as e:
+            current_app.logger.error(
+                f"AUDIT UNKNOWN ERROR | {audit_data.action if hasattr(audit_data, 'action') else 'unknown'} | "
+                f"Error: {str(e)[:200]}"
+            )
+            return None
         finally:
+            if cursor:
+                cursor.close()
             if conn:
-                conn.close()
+                AuditDatabase.release_connection(conn)
                     
-                
- @staticmethod
- def get_by_user(user_id: str, limit: int = 100) -> list[TokenAudit]:
+    @staticmethod
+    def get_by_user(user_id: str, limit: int = 100) -> List[TokenAudit]:
         """Obtém registros de auditoria para um usuário específico"""
         conn = None
+        cursor = None
         try:
-            conn = get_db_connection()
-            cur = conn.cursor(cursor_factory=RealDictCursor)
+            conn = AuditDatabase.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             query = """
                 SELECT id, timestamp, user_id, token_type, action,
-                    token_jti, error, ip_address, user_agent, additional_data
+                    token_jti, error, ip_address, user_agent
                 FROM tokens_audit_log
                 WHERE user_id = %s
                 ORDER BY timestamp DESC
                 LIMIT %s
             """
             
-            cur.execute(query, (user_id, limit))
-            
+            cursor.execute(query, (user_id, limit))
             results = []
-            for row in cur.fetchall():
-                # Converte additional_data de TEXT para dict
-                additional_data = None
-                if row['additional_data']:
-                    try:
-                        additional_data = json.loads(row['additional_data'])
-                    except json.JSONDecodeError:
-                        additional_data = {'raw_data': row['additional_data']}
-                
+            
+            for row in cursor.fetchall():
                 results.append(
                     TokenAudit(
                         id=row['id'],
@@ -91,16 +100,20 @@ class TokenAuditRepository:
                         token_jti=row['token_jti'],
                         error=row['error'],
                         ip_address=row['ip_address'],
-                        user_agent=row['user_agent'],
-                        additional_data=additional_data
+                        user_agent=row['user_agent']
                     )
                 )
             
             return results
             
         except psycopg2.Error as e:
-            print(f"Database error while fetching audit logs: {e}")
+            current_app.logger.error(f"Database error while fetching audit logs: {e}")
+            return []
+        except Exception as e:
+            current_app.logger.error(f"Unexpected error fetching audit logs: {str(e)}")
             return []
         finally:
+            if cursor:
+                cursor.close()
             if conn:
-                conn.close()
+                AuditDatabase.release_connection(conn)
