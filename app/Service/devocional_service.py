@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, date
-from app.Repository.devocional_repository import DevocionalRepository
+from app.Repository.devotionals_repository import DevotionalsRepository
 from app.Models.devocional import Devocional, DevocionalCreate, DevocionalUpdate
 from werkzeug.exceptions import BadRequest, NotFound, Unauthorized
 from flask import current_app

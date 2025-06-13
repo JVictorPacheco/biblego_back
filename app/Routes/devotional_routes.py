@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import BadRequest
-from app.Service.devotional_service import DevotionalService
+from app.Service.devocional_service import DevocionalService
 from app.Utils.jwt_utils import token_required
 import traceback
 from datetime import datetime
@@ -145,7 +145,7 @@ def criar_devocional():
         if not devocional_data:
             return jsonify({"erro": "Dados JSON são obrigatórios"}), 400
         
-        devotional_service = DevotionalService()
+        devotional_service = DevocionalService()
         resultado, status_code = devotional_service.criar_devocional(devocional_data)
         
         return jsonify(resultado), status_code
@@ -211,7 +211,7 @@ def obter_devocional(devocional_id):
         description: Erro interno do servidor
     """
     try:
-        devotional_service = DevotionalService()
+        devotional_service = DevocionalService()
         resultado, status_code = devotional_service.obter_devocional_por_id(devocional_id)
         
         return jsonify(resultado), status_code
@@ -353,7 +353,7 @@ def listar_devocionais():
         if request.args.get('search_text'):
             filtros['search_text'] = request.args.get('search_text')
         
-        devotional_service = DevotionalService()
+        devotional_service = DevocionalService()
         resultado, status_code = devotional_service.listar_devocionais(
             filtros=filtros if filtros else None,
             pagina=pagina,
@@ -460,7 +460,7 @@ def atualizar_devocional(devocional_id):
         if not novos_dados:
             return jsonify({"erro": "Dados JSON são obrigatórios"}), 400
         
-        devotional_service = DevotionalService()
+        devotional_service = DevocionalService()
         resultado, status_code = devotional_service.atualizar_devocional(
             devocional_id, novos_dados
         )
@@ -572,7 +572,7 @@ def buscar_devocionais():
         if limite > 50:
             limite = 50
         
-        devotional_service = DevotionalService()
+        devotional_service = DevocionalService()
         resultado, status_code = devotional_service.buscar_por_texto(texto, limite)
         
         return jsonify(resultado), status_code
@@ -608,7 +608,7 @@ def devocional_hoje():
             'end_date': hoje
         }
         
-        devotional_service = DevotionalService()
+        devotional_service = DevocionalService()
         resultado, status_code = devotional_service.listar_devocionais(
             filtros=filtros, pagina=1, limite=1
         )
