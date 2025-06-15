@@ -16,23 +16,29 @@ class AuthService:
 
 
     def login(self, email, senha):
-        
-        """Autentica usuário e retorna tokens"""
+        """Autentica usuário e retorna tokens com registro de login timestamps"""
         try:
+            # 1. Valida credenciais
             usuario = self.validar_credenciais(email, senha)
             
-            # Gera par de tokens (access + refresh)
+            # 2. Verifica se é primeiro login (antes de atualizar)
+            primeiro_login = self.usuario_repo.verificar_primeiro_login(usuario['id'])
+            
+            # 3. Atualiza timestamps de login
+            timestamps = self.usuario_repo.atualizar_timestamps_login(usuario['id'])
+            
+            # 4. Gera par de tokens (access + refresh)
             tokens = self.token_service.gerar_par_tokens(usuario['email'], usuario['firebase_uid'])
             
-            # Decodifica o access token para obter o jti (para auditoria)
+            # 5. Decodifica o access token para obter o jti (para auditoria)
             try:
                 decoded = jwt.decode(
-                    tokens['access_token'], 
-                    self.token_service.secret_key, 
+                    tokens['access_token'],
+                    self.token_service.secret_key,
                     algorithms=[self.token_service.algorithm]
                 )
                 
-                # Auditoria de login (SUCESSO) - já é feita no gerar_tokens, mas podemos manter para login específico
+                # 6. Auditoria de login (SUCESSO) com informação de primeiro login
                 self.token_service._audit_token(
                     user_id=usuario['firebase_uid'],
                     token_type='login',
@@ -41,15 +47,18 @@ class AuthService:
                     ip_address=request.remote_addr if hasattr(request, 'remote_addr') else None,
                     user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None
                 )
+                
             except Exception as e:
                 current_app.logger.error(f"Falha ao auditar token de login: {str(e)}")
             
-            return {
+            # 7. Monta resposta com informações de login
+            response = {
                 "access_token": tokens['access_token'],
                 "refresh_token": tokens['refresh_token'],
                 "token_type": tokens['token_type'],
                 "expires_in": tokens['expires_in'],
                 "mensagem": "Login realizado com sucesso",
+                "primeiro_login": primeiro_login,  # Indica se é primeiro login
                 "usuario": {
                     "id": usuario["id"],
                     "email": usuario["email"],
@@ -57,6 +66,15 @@ class AuthService:
                     "firebase_uid": usuario["firebase_uid"]
                 }
             }
+            
+            # 8. Adiciona timestamps se disponíveis
+            if timestamps:
+                response["login_info"] = {
+                    "primeiro_login": timestamps['primeiro_login'].isoformat() if timestamps['primeiro_login'] else None,
+                    "ultimo_login": timestamps['ultimo_login'].isoformat() if timestamps['ultimo_login'] else None
+                }
+            
+            return response
             
         except Exception as e:
             # Auditoria de login (FALHA)
@@ -69,6 +87,62 @@ class AuthService:
                 user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None
             )
             raise
+        
+        
+       
+        
+        # """Autentica usuário e retorna tokens"""
+        # try:
+        #     usuario = self.validar_credenciais(email, senha)
+            
+        #     # Gera par de tokens (access + refresh)
+        #     tokens = self.token_service.gerar_par_tokens(usuario['email'], usuario['firebase_uid'])
+            
+        #     # Decodifica o access token para obter o jti (para auditoria)
+        #     try:
+        #         decoded = jwt.decode(
+        #             tokens['access_token'], 
+        #             self.token_service.secret_key, 
+        #             algorithms=[self.token_service.algorithm]
+        #         )
+                
+        #         # Auditoria de login (SUCESSO) - já é feita no gerar_tokens, mas podemos manter para login específico
+        #         self.token_service._audit_token(
+        #             user_id=usuario['firebase_uid'],
+        #             token_type='login',
+        #             action='login_success',
+        #             token_jti=decoded['jti'],
+        #             ip_address=request.remote_addr if hasattr(request, 'remote_addr') else None,
+        #             user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None
+        #         )
+        #     except Exception as e:
+        #         current_app.logger.error(f"Falha ao auditar token de login: {str(e)}")
+            
+        #     return {
+        #         "access_token": tokens['access_token'],
+        #         "refresh_token": tokens['refresh_token'],
+        #         "token_type": tokens['token_type'],
+        #         "expires_in": tokens['expires_in'],
+        #         "mensagem": "Login realizado com sucesso",
+        #         "usuario": {
+        #             "id": usuario["id"],
+        #             "email": usuario["email"],
+        #             "nome": usuario.get("nome"),
+        #             "firebase_uid": usuario["firebase_uid"]
+        #         }
+        #     }
+            
+        # except Exception as e:
+        #     # Auditoria de login (FALHA)
+        #     self.token_service._audit_token(
+        #         user_id=email,  # Usa email como identificador quando não tem firebase_uid
+        #         token_type='login',
+        #         action='login_failed',
+        #         error=str(e),
+        #         ip_address=request.remote_addr if hasattr(request, 'remote_addr') else None,
+        #         user_agent=request.headers.get('User-Agent') if hasattr(request, 'headers') else None
+        #     )
+        #     raise
 
 
 
