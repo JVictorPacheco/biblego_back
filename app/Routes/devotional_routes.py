@@ -4,6 +4,7 @@ from app.Service.devocional_service import DevocionalService
 from app.Utils.jwt_utils import token_required
 import traceback
 from datetime import date, datetime
+from werkzeug.exceptions import NotFound
 
 
 devotional_blueprint = Blueprint('devotional', __name__)

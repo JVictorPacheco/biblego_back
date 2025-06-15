@@ -189,31 +189,51 @@ class UsuarioRepository:
 
 
 
-    def buscar_usuario_por_id(self, user_id):
-        """Buscando usuario por id"""
-        
+    def buscar_usuario_por_id(self, user_id, incluir_login_info=False):
+        """Busca usuário por ID com opção de incluir informações de login"""
         try: 
             db = get_db_connection()
-            sql =     """
-                SELECT id, nome, email, url_foto, endereco, sexo, 
-                is_premium, data_assinatura_premium, plano_premium, 
-                data_final_premium FROM usuarios WHERE id = %(id)s
-                      """
+            
+            if incluir_login_info:
+                sql = """
+                    SELECT id, nome, email, url_foto, endereco, sexo, 
+                    is_premium, data_assinatura_premium, plano_premium, 
+                    data_final_premium, primeiro_login, ultimo_login
+                    FROM usuarios WHERE id = %(id)s
+                """
+                campos = [
+                    'id', 'nome', 'email', 'url_foto', 'endereco', 'sexo',
+                    'is_premium', 'data_assinatura_premium', 'plano_premium',
+                    'data_final_premium', 'primeiro_login', 'ultimo_login'
+                ]
+            else:
+                sql = """
+                    SELECT id, nome, email, url_foto, endereco, sexo, 
+                    is_premium, data_assinatura_premium, plano_premium, 
+                    data_final_premium FROM usuarios WHERE id = %(id)s
+                """
+                campos = [
+                    'id', 'nome', 'email', 'url_foto', 'endereco', 'sexo',
+                    'is_premium', 'data_assinatura_premium', 'plano_premium',
+                    'data_final_premium'
+                ]
         
             db.cursor.execute(sql, {'id': user_id})
             usuario_data = db.cursor.fetchone()
             
             if usuario_data:
+                usuario_dict = dict(zip(campos, usuario_data))
                 
+                # Converte timestamps para ISO format se incluir login info
+                if incluir_login_info:
+                    if usuario_dict.get('primeiro_login'):
+                        usuario_dict['primeiro_login'] = usuario_dict['primeiro_login'].isoformat()
+                    if usuario_dict.get('ultimo_login'):
+                        usuario_dict['ultimo_login'] = usuario_dict['ultimo_login'].isoformat()
                 
-                campos = [
-                'id', 'nome', 'email', 'url_foto', 'endereco', 'sexo',
-                'is_premium', 'data_assinatura_premium', 'plano_premium',
-                'data_final_premium'
-            ]
-                
-                return dict(zip(campos, usuario_data))
+                return usuario_dict
             return None
+            
         except Exception as e:
             print(f"Erro ao buscar usuário: {e}")
             return None
@@ -263,3 +283,124 @@ class UsuarioRepository:
         except Exception as e:
             print(f"Erro ao buscar usuário por firebase_uid: {e}")
             raise  # Re-lança a exceção para ser tratada no service
+        
+        
+        
+        
+        
+        
+    def atualizar_timestamps_login(self, user_id):
+        """Atualiza primeiro_login (se NULL) e ultimo_login do usuário"""
+        try:
+            db = get_db_connection()
+            
+            # Query que atualiza ambos os campos de forma inteligente
+            sql = """
+            UPDATE usuarios 
+            SET 
+                primeiro_login = CASE 
+                    WHEN primeiro_login IS NULL THEN NOW() 
+                    ELSE primeiro_login 
+                END,
+                ultimo_login = NOW()
+            WHERE id = %(user_id)s
+            RETURNING primeiro_login, ultimo_login
+            """
+            
+            db.cursor.execute(sql, {'user_id': user_id})
+            result = db.cursor.fetchone()
+            db.connection.commit()
+            
+            if result:
+                return {
+                    'primeiro_login': result[0],
+                    'ultimo_login': result[1]
+                }
+            return None
+            
+        except Exception as e:
+            db.connection.rollback()
+            print(f"Erro ao atualizar timestamps de login: {e}")
+            raise e
+
+
+    def verificar_primeiro_login(self, user_id):
+        """Verifica se é o primeiro login do usuário"""
+        try:
+            db = get_db_connection()
+            sql = "SELECT primeiro_login FROM usuarios WHERE id = %(user_id)s"
+            db.cursor.execute(sql, {'user_id': user_id})
+            result = db.cursor.fetchone()
+            
+            # Retorna True se primeiro_login é NULL (primeiro login)
+            return result and result[0] is None
+            
+        except Exception as e:
+            print(f"Erro ao verificar primeiro login: {e}")
+            return False
+        
+    
+    
+    
+    def buscar_info_login(self, user_id):
+        """Busca informações de login do usuário"""
+        try:
+            db = get_db_connection()
+            sql = """
+            SELECT primeiro_login, ultimo_login,
+                CASE 
+                    WHEN primeiro_login IS NOT NULL AND ultimo_login IS NOT NULL 
+                    THEN EXTRACT(EPOCH FROM (ultimo_login - primeiro_login))::integer
+                    ELSE NULL 
+                END as tempo_como_usuario_segundos
+            FROM usuarios 
+            WHERE id = %(user_id)s
+            """
+            
+            db.cursor.execute(sql, {'user_id': user_id})
+            result = db.cursor.fetchone()
+            
+            if result:
+                return {
+                    'primeiro_login': result[0],
+                    'ultimo_login': result[1], 
+                    'tempo_como_usuario_segundos': result[2],
+                    'tem_login_anterior': result[0] is not None
+                }
+            return None
+            
+        except Exception as e:
+            print(f"Erro ao buscar info de login: {e}")
+            return None
+
+
+    def buscar_estatisticas_login_geral(self):
+        """Busca estatísticas gerais de login para analytics"""
+        try:
+            db = get_db_connection()
+            sql = """
+            SELECT 
+                COUNT(*) as total_usuarios,
+                COUNT(primeiro_login) as usuarios_com_login,
+                COUNT(CASE WHEN primeiro_login >= CURRENT_DATE THEN 1 END) as primeiros_logins_hoje,
+                COUNT(CASE WHEN ultimo_login >= CURRENT_DATE THEN 1 END) as logins_hoje,
+                COUNT(CASE WHEN ultimo_login >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as logins_semana
+            FROM usuarios
+            """
+            
+            db.cursor.execute(sql)
+            result = db.cursor.fetchone()
+            
+            if result:
+                return {
+                    'total_usuarios': result[0],
+                    'usuarios_com_login': result[1],
+                    'primeiros_logins_hoje': result[2],
+                    'logins_hoje': result[3],
+                    'logins_ultima_semana': result[4]
+                }
+            return None
+            
+        except Exception as e:
+            print(f"Erro ao buscar estatísticas de login: {e}")
+            return None

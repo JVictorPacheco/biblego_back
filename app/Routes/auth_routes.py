@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app.Service.auth_service import AuthService
 from app.Service.token_service import TokenService
 from werkzeug.exceptions import Unauthorized, BadRequest
+from app.Service.user_analytics_service import UserAnalyticsService
 from app.Utils.jwt_utils import token_required
 import traceback
 from app.Service.user_service import UserService
@@ -218,3 +219,87 @@ def logins_protegidos():
         return jsonify({"erro": str(e)}), 401
     except Exception as e:
         return jsonify({"erro": "Erro interno"}), 500
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+@auth_blueprint.route('/analytics/login', methods=['GET'])
+def analytics_login():
+    """
+    Retorna estatísticas de login dos usuários
+    ---
+    tags:
+      - Analytics
+    responses:
+      200:
+        description: Estatísticas de login
+        schema:
+          type: object
+          properties:
+            total_usuarios:
+              type: integer
+            usuarios_com_login:
+              type: integer
+            primeiros_logins_hoje:
+              type: integer
+            logins_hoje:
+              type: integer
+            logins_ultima_semana:
+              type: integer
+            taxa_usuarios_ativos:
+              type: number
+            taxa_engajamento_semanal:
+              type: number
+    """
+    try:
+        # USA O SERVICE AO INVÉS DO REPOSITORY
+        analytics_service = UserAnalyticsService()
+        stats = analytics_service.obter_estatisticas_login()
+        
+        return jsonify(stats), 200
+            
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"Erro ao buscar analytics: {traceback.format_exc()}")
+        return jsonify({"error": "Erro interno"}), 500
+
+
+
+@auth_blueprint.route('/usuario/<int:user_id>/login-info', methods=['GET'])
+def info_login_usuario(user_id):
+    """
+    Retorna informações de login de um usuário específico
+    ---
+    tags:
+      - Usuários
+    parameters:
+      - in: path
+        name: user_id
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Informações de login do usuário
+      404:
+        description: Usuário não encontrado
+    """
+    try:
+        # USA O SERVICE AO INVÉS DO REPOSITORY  
+        analytics_service = UserAnalyticsService()
+        login_info = analytics_service.obter_info_login_usuario(user_id)
+        
+        return jsonify(login_info), 200
+            
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        print(f"Erro ao buscar info de login: {traceback.format_exc()}")
+        return jsonify({"error": "Erro interno"}), 500
