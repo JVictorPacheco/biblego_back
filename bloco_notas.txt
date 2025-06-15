@@ -1,0 +1,7 @@
+len() --> 
+A função len() retorna o comprimento (número de elementos) de um objeto, como strings, listas, tuplas, etc.
+
+
+
+strip() -->
+O método strip() é usado para remover espaços em branco (ou outros caracteres específicos) do início e fim de uma string.

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from werkzeug.exceptions import BadRequest
 from app.Service.devocional_service import DevocionalService
 from app.Utils.jwt_utils import token_required
@@ -354,10 +354,10 @@ def listar_devocionais():
             filtros['search_text'] = request.args.get('search_text')
         
         devotional_service = DevocionalService()
+        filtros['pagina'] = 1
+        filtros['por_pagina'] = 1
         resultado, status_code = devotional_service.listar_devocionais(
-            filtros=filtros if filtros else None,
-            pagina=pagina,
-            limite=limite
+            filtros=filtros if filtros else None
         )
         
         return jsonify(resultado), status_code
@@ -599,32 +599,20 @@ def devocional_hoje():
       500:
         description: Erro interno do servidor
     """
+    """Retorna o devocional do dia atual"""
     try:
-        from datetime import date
-        
-        hoje = date.today()
-        filtros = {
-            'start_date': hoje,
-            'end_date': hoje
-        }
-        
+        # ✅ APENAS coordenação - delega para Service
         devotional_service = DevocionalService()
-        resultado, status_code = devotional_service.listar_devocionais(
-            filtros=filtros, pagina=1, limite=1
-        )
+        resultado = devotional_service.obter_devocional_do_dia()
         
-        if status_code == 200 and resultado.get('devocionais'):
-            devocional = resultado['devocionais'][0]
-            return jsonify({
-                "devocional_do_dia": devocional,
-                "data": hoje.isoformat()
-            }), 200
-        else:
-            return jsonify({
-                "mensagem": "Nenhum devocional encontrado para hoje",
-                "data": hoje.isoformat()
-            }), 404
+        # ✅ Responsabilidade do Route: status HTTP
+        return jsonify(resultado), 200
         
+    except NotFound as e:
+        return jsonify({
+            "erro": str(e),
+            "data_solicitada": date.today().isoformat()
+        }), 404
     except Exception as e:
-        print(f"Erro ao buscar devocional de hoje: {traceback.format_exc()}")
+        current_app.logger.error(f"Erro no endpoint: {str(e)}")
         return jsonify({"erro": "Erro interno do servidor"}), 500
