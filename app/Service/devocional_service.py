@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, date
 from app.Repository.devotionals_repository import DevotionalsRepository
-from app.Models.devocional import Devocional, DevocionalCreate, DevocionalUpdate
+from app.Models.devotional import Devotional, DevotionalCreate, DevotionalUpdate
 from werkzeug.exceptions import BadRequest, NotFound, Unauthorized
 from flask import current_app
 
@@ -12,14 +12,14 @@ class DevocionalService:
     Aplica princípios SOLID e Clean Code para separar responsabilidades.
     """
     
-    def __init__(self, devocional_repository: DevocionalRepository = None):
+    def __init__(self, devocional_repository: DevotionalsRepository = None):
         """
         Inicializa o service com injeção de dependência.
         
         Args:
             devocional_repository: Repository para operações de dados (Dependency Injection)
         """
-        self.devocional_repository = devocional_repository or DevocionalRepository()
+        self.devocional_repository = devocional_repository or DevotionalsRepository()
         
         # Campos permitidos para atualização (Princípio da Responsabilidade Única)
         self.CAMPOS_PERMITIDOS_ATUALIZACAO = {
@@ -135,26 +135,49 @@ class DevocionalService:
             Dict com lista paginada de devocionais
         """
         try:
-            # 1. Sanitização e validação dos filtros
-            filtros_validados = self._validar_filtros_listagem(filtros or {})
+            filtros = filtros or {}
+            pagina = filtros.get('pagina', 1)
+            por_pagina = filtros.get('por_pagina', 10)
             
-            # 2. Aplicação de regras de negócio para listagem
-            filtros_processados = self._aplicar_regras_listagem(filtros_validados, user_id)
+            # ✅ USA O REPOSITORY EXISTENTE
+            resultado = DevotionalsRepository.listar_devocionais_paginado(
+                page=pagina, 
+                per_page=por_pagina
+            )
             
-            # 3. Busca no repository
-            resultado = self.devocional_repository.listar_devocionais(filtros_processados)
-            
-            # 4. Formatação da resposta
             return {
-                "devocionais": [self._formatar_devocional_resumo(d) for d in resultado['devocionais']],
-                "total": resultado['total'],
-                "pagina": resultado.get('pagina', 1),
-                "por_pagina": resultado.get('por_pagina', 10)
+                "devocionais": resultado['devocionais'],
+                "total": resultado['pagination']['total'],
+                "pagina": resultado['pagination']['page'],
+                "por_pagina": resultado['pagination']['per_page']
             }
-            
         except Exception as e:
             current_app.logger.error(f"Erro ao listar devocionais: {str(e)}")
             raise Exception("Falha interna ao listar devocionais")
+        
+   
+        
+        # try:
+        #     # 1. Sanitização e validação dos filtros
+        #     filtros_validados = self._validar_filtros_listagem(filtros or {})
+            
+        #     # 2. Aplicação de regras de negócio para listagem
+        #     filtros_processados = self._aplicar_regras_listagem(filtros_validados, user_id)
+            
+        #     # 3. Busca no repository
+        #     resultado = self.devocional_repository.buscar_devocional_do_dia(filtros_processados)
+            
+        #     # 4. Formatação da resposta
+        #     return {
+        #         "devocionais": [self._formatar_devocional_resumo(d) for d in resultado['devocionais']],
+        #         "total": resultado['total'],
+        #         "pagina": resultado.get('pagina', 1),
+        #         "por_pagina": resultado.get('por_pagina', 10)
+        #     }
+            
+        # except Exception as e:
+        #     current_app.logger.error(f"Erro ao listar devocionais: {str(e)}")
+        #     raise Exception("Falha interna ao listar devocionais")
 
 
     def atualizar_devocional(self, devocional_id: int, dados_atualizacao: Dict[str, Any], user_id: int) -> Tuple[Dict[str, Any], int]:
@@ -245,31 +268,61 @@ class DevocionalService:
             return {"erro": "Falha interna ao deletar devocional"}, 500
 
 
-    def obter_devocional_do_dia(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+    def obter_devocional_do_dia(self, data_referencia: Optional[date] = None) -> Dict[str, Any]:
         """
-        Obtém o devocional específico para o dia atual.
+        Obtém devocional seguindo regras de negócio específicas
         
-        Args:
-            user_id: ID do usuário (para personalização)
-            
-        Returns:
-            Dict com devocional do dia
+        REGRAS:
+        1. Busca exato para a data
+        2. Se não encontrar, busca período próximo (7 dias)
+        3. Último recurso: mais recente até hoje (sem futuro)
         """
         try:
-            data_hoje = date.today()
+            if data_referencia is None:
+                data_referencia = date.today()
+                
+            current_app.logger.info(f"Buscando devocional para: {data_referencia}")
             
-            # 1. Busca devocional específico para hoje
-            devocional = self.devocional_repository.buscar_por_data(data_hoje)
+            # REGRA 1: Busca exata
+            devocional_exato = self.devocional_repository.buscar_devocional_do_dia(data_referencia)
             
-            # 2. Se não encontrar, busca o mais recente ativo
-            if not devocional:
-                devocional = self.devocional_repository.buscar_mais_recente_ativo()
+            if devocional_exato:
+                current_app.logger.info(f"Devocional exato encontrado: ID {devocional_exato['id']}")
+                return {
+                    "devocional": devocional_exato,
+                    "tipo_busca": "exato",
+                    "data_solicitada": data_referencia
+                }
             
-            if not devocional:
-                raise NotFound("Nenhum devocional disponível para hoje")
+            # REGRA 2: Período próximo
+            current_app.logger.info("Buscando período próximo")
+            devocionais_periodo = self.devocional_repository.buscar_devocional_periodo_ate_hoje(7)
             
-            # 3. Formatação da resposta
-            return self._formatar_resposta_devocional(devocional)
+            if devocionais_periodo:
+                devocional_periodo = devocionais_periodo[0]
+                current_app.logger.info(f"Devocional do período: ID {devocional_periodo['id']}")
+                return {
+                    "devocional": devocional_periodo,
+                    "tipo_busca": "periodo_proximo",
+                    "data_solicitada": data_referencia,
+                    "mensagem": "Devocional do período mais próximo"
+                }
+            
+            # REGRA 3: Mais recente geral (sem futuro)
+            current_app.logger.info("Buscando mais recente até hoje")
+            devocional_recente = self.devocional_repository.buscar_devocional_mais_recente_ate_hoje()
+            
+            if devocional_recente:
+                current_app.logger.info(f"Mais recente encontrado: ID {devocional_recente['id']}")
+                return {
+                    "devocional": devocional_recente,
+                    "tipo_busca": "mais_recente",
+                    "data_solicitada": data_referencia,
+                    "mensagem": "Devocional mais recente disponível"
+                }
+            
+            # REGRA 4: Nenhum encontrado
+            raise NotFound("Nenhum devocional disponível")
             
         except NotFound:
             raise
@@ -278,9 +331,9 @@ class DevocionalService:
             raise Exception("Falha interna ao obter devocional do dia")
 
 
-    # ================================
-    # MÉTODOS PRIVADOS (Single Responsibility)
-    # ================================
+        # ================================
+        # MÉTODOS PRIVADOS (Single Responsibility)
+        # ================================
 
     def _validar_dados_criacao(self, dados: Dict[str, Any]) -> None:
         """Valida dados para criação de devocional."""

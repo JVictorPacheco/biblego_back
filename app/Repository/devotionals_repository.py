@@ -279,10 +279,12 @@ class DevotionalsRepository:
                            chapter, verse, content, application, prayer,
                            author, publish_date, tags
                     FROM devotionals_flow
-                    WHERE publish_date = %(publish_date)s
+                    WHERE publish_date = current_date  
                     ORDER BY id DESC
                     LIMIT 1
                 """
+                
+                #%(publish_date)s
                 
                 db.cursor.execute(query, {'publish_date': data_referencia})
                 result = db.cursor.fetchone()
@@ -476,6 +478,81 @@ class DevotionalsRepository:
         except Exception as e:
             print(f"Erro ao verificar existência do devocional: {e}")
             return False
+
+
+    @staticmethod
+    def buscar_devocional_mais_recente_ate_hoje() -> Optional[Dict[str, Any]]:
+        """Busca o devocional mais recente até hoje (SEM datas futuras)"""
+        try:
+            from datetime import date
+            
+            with DatabaseConnection(**DB_CONFIG) as db:
+                hoje = date.today()
+                
+                query = """
+                    SELECT id, title, main_verse, verse_reference, book_id,
+                        chapter, verse, content, application, prayer,
+                        author, publish_date, tags
+                    FROM devotionals_flow
+                    WHERE publish_date <= %(hoje)s
+                    ORDER BY publish_date DESC, id DESC
+                    LIMIT 1
+                """
+                
+                db.cursor.execute(query, {'hoje': hoje})
+                result = db.cursor.fetchone()
+                
+                if result:
+                    campos = [
+                        'id', 'title', 'main_verse', 'verse_reference', 'book_id',
+                        'chapter', 'verse', 'content', 'application', 'prayer',
+                        'author', 'publish_date', 'tags'
+                    ]
+                    return dict(zip(campos, result))
+                
+                return None
+                
+        except Exception as e:
+            print(f"Erro ao buscar devocional mais recente até hoje: {e}")
+            return None
+
+    @staticmethod
+    def buscar_devocional_periodo_ate_hoje(dias_anteriores: int = 7) -> List[Dict[str, Any]]:
+        """Busca devocionais em período até hoje"""
+        try:
+            from datetime import date, timedelta
+            
+            with DatabaseConnection(**DB_CONFIG) as db:
+                hoje = date.today()
+                data_inicio = hoje - timedelta(days=dias_anteriores)
+                
+                query = """
+                    SELECT id, title, main_verse, verse_reference, book_id,
+                        chapter, verse, content, application, prayer,
+                        author, publish_date, tags
+                    FROM devotionals_flow
+                    WHERE publish_date BETWEEN %(data_inicio)s AND %(hoje)s
+                    ORDER BY publish_date DESC, id DESC
+                """
+                
+                db.cursor.execute(query, {
+                    'data_inicio': data_inicio,
+                    'hoje': hoje
+                })
+                results = db.cursor.fetchall()
+                
+                campos = [
+                    'id', 'title', 'main_verse', 'verse_reference', 'book_id',
+                    'chapter', 'verse', 'content', 'application', 'prayer',
+                    'author', 'publish_date', 'tags'
+                ]
+                
+                return [dict(zip(campos, row)) for row in results]
+                
+        except Exception as e:
+            print(f"Erro ao buscar devocionais por período: {e}")
+            return []
+
 
     @staticmethod
     def buscar_devocionais_por_livro(book_id: int, limit: int = 50) -> List[Dict[str, Any]]:
