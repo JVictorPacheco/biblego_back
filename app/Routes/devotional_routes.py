@@ -3,7 +3,7 @@ from werkzeug.exceptions import BadRequest
 from app.Service.devocional_service import DevocionalService
 from app.Utils.jwt_utils import token_required
 import traceback
-from datetime import datetime
+from datetime import date, datetime
 
 
 devotional_blueprint = Blueprint('devotional', __name__)
@@ -597,7 +597,7 @@ def devocional_hoje():
       404:
         description: Nenhum devocional encontrado para hoje
       500:
-        description: Erro interno do servidor
+        description: Erro interno do servidor 
     """
     """Retorna o devocional do dia atual"""
     try:
