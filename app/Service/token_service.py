@@ -118,8 +118,8 @@ class TokenService:
                 "email": email,
                 "firebase_uid": firebase_uid,
                 "exp": datetime.now(timezone.utc) + (
-                    timedelta(minutes=2) if token_type == "access" 
-                    else timedelta(minutes=10)
+                    timedelta(hours=1) if token_type == "access" 
+                    else timedelta(hours=2)
                 ),
                 "jti": str(uuid.uuid4()),
                 "type": token_type
@@ -162,7 +162,7 @@ class TokenService:
                     "access_token": access_token,
                     "refresh_token": refresh_token,
                     "token_type": "bearer",
-                    "expires_in": 120  # 2 min
+                    "expires_in": 3600  # 2 min
                 }
                 
             except Exception as e:

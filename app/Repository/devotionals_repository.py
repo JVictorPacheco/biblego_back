@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
+from flask import jsonify, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.Config.database import get_db_connection, DB_CONFIG
@@ -15,24 +16,45 @@ class DevotionalsRepository:
     @staticmethod
     def criar_devocional(devocional_data: Dict[str, Any]) -> Optional[int]:
         """
-        Cria um novo devocional no banco de dados
-        
-        Args:
-            devocional_data: Dicionário com os dados do devocional
-            
-        Returns:
-            ID do devocional criado ou None em caso de erro
-            
-        Raises:
-            ValueError: Se dados obrigatórios estiverem ausentes
-            Exception: Erros de banco de dados
+        Cria um novo devocional no banco de dados (versão com debug)
         """
         try:
+            # DEBUG - verificar dados recebidos
+            print(f"[REPO DEBUG] Dados recebidos: {devocional_data}")
+            print(f"[REPO DEBUG] Tipo dos dados: {type(devocional_data)}")
+            
+            if devocional_data is None:
+                print("[REPO DEBUG] devocional_data é None")
+                raise ValueError("Dados do devocional são None")
+            
+            if not isinstance(devocional_data, dict):
+                print(f"[REPO DEBUG] Dados não são dict: {type(devocional_data)}")
+                raise ValueError("Dados devem ser um dicionário")
+            
+            # Validação de campos obrigatórios
+            campos_obrigatorios = [
+                'title', 'main_verse', 'verse_reference', 'book_id',
+                'chapter', 'verse', 'content', 'application',
+                'prayer', 'author', 'publish_date', 'tags'
+            ]
+            
+            campos_faltando = []
+            for campo in campos_obrigatorios:
+                if campo not in devocional_data:
+                    campos_faltando.append(campo)
+            
+            if campos_faltando:
+                print(f"[REPO DEBUG] Campos faltando: {campos_faltando}")
+                raise ValueError(f"Campos obrigatórios faltando: {', '.join(campos_faltando)}")
+            
+            print(f"[REPO DEBUG] Todos os campos presentes: {list(devocional_data.keys())}")
+            
+            # Executar insert no banco
             with DatabaseConnection(**DB_CONFIG) as db:
                 query = """
                     INSERT INTO devotionals_flow (
-                        title, main_verse, verse_reference, book_id, 
-                        chapter, verse, content, application, 
+                        title, main_verse, verse_reference, book_id,
+                        chapter, verse, content, application,
                         prayer, author, publish_date, tags
                     ) VALUES (
                         %(title)s, %(main_verse)s, %(verse_reference)s, %(book_id)s,
@@ -41,19 +63,32 @@ class DevotionalsRepository:
                     ) RETURNING id
                 """
                 
+                print(f"[REPO DEBUG] Executando query...")
+                print(f"[REPO DEBUG] Valores: {devocional_data}")
+                
                 db.cursor.execute(query, devocional_data)
-                devocional_id = db.cursor.fetchone()[0]
+                
+                result = db.cursor.fetchone()
+                if not result:
+                    print("[REPO DEBUG] Nenhum resultado retornado")
+                    raise Exception("Nenhum ID retornado pelo banco de dados")
+                
+                devocional_id = result[0]
                 db.connection.commit()
                 
+                print(f"[REPO DEBUG] Devocional criado com ID: {devocional_id}")
                 return devocional_id
                 
         except psycopg2.Error as e:
-            print(f"Erro de banco ao criar devocional: {e}")
+            print(f"[REPO DEBUG] Erro de banco: {e}")
+            print(f"[REPO DEBUG] Código do erro: {e.pgcode}")
+            print(f"[REPO DEBUG] Dados que causaram erro: {devocional_data}")
             if 'db' in locals() and db.connection:
                 db.connection.rollback()
-            raise
+            raise Exception(f"Erro de banco de dados: {str(e)}")
         except Exception as e:
-            print(f"Erro inesperado ao criar devocional: {e}")
+            print(f"[REPO DEBUG] Erro inesperado: {e}")
+            print(f"[REPO DEBUG] Tipo do erro: {type(e)}")
             if 'db' in locals() and db.connection:
                 db.connection.rollback()
             raise
@@ -431,54 +466,16 @@ class DevotionalsRepository:
 
     @staticmethod
     def deletar_devocional(devocional_id: int) -> bool:
-        """
-        Deleta um devocional
-        
-        Args:
-            devocional_id: ID do devocional a ser deletado
-            
-        Returns:
-            True se deletado com sucesso, False caso contrário
-        """
+        """Deleta um devocional no banco (VERSÃO SIMPLES)"""
         try:
             with DatabaseConnection(**DB_CONFIG) as db:
                 query = "DELETE FROM devotionals_flow WHERE id = %(id)s"
-                
                 db.cursor.execute(query, {'id': devocional_id})
                 db.connection.commit()
-                
                 return db.cursor.rowcount > 0
-                
         except Exception as e:
             print(f"Erro ao deletar devocional: {e}")
-            if 'db' in locals() and db.connection:
-                db.connection.rollback()
             return False
-
-    @staticmethod
-    def devocional_existe(devocional_id: int) -> bool:
-        """
-        Verifica se um devocional existe
-        
-        Args:
-            devocional_id: ID do devocional
-            
-        Returns:
-            True se existe, False caso contrário
-        """
-        try:
-            with DatabaseConnection(**DB_CONFIG) as db:
-                query = "SELECT 1 FROM devotionals_flow WHERE id = %(id)s LIMIT 1"
-                
-                db.cursor.execute(query, {'id': devocional_id})
-                result = db.cursor.fetchone()
-                
-                return result is not None
-                
-        except Exception as e:
-            print(f"Erro ao verificar existência do devocional: {e}")
-            return False
-
 
     @staticmethod
     def buscar_devocional_mais_recente_ate_hoje() -> Optional[Dict[str, Any]]:
@@ -515,6 +512,7 @@ class DevotionalsRepository:
         except Exception as e:
             print(f"Erro ao buscar devocional mais recente até hoje: {e}")
             return None
+
 
     @staticmethod
     def buscar_devocional_periodo_ate_hoje(dias_anteriores: int = 7) -> List[Dict[str, Any]]:
@@ -553,6 +551,78 @@ class DevotionalsRepository:
             print(f"Erro ao buscar devocionais por período: {e}")
             return []
 
+
+
+    @staticmethod
+    def buscar_por_criterios_dev(titulo: str = "", autor: str = "") -> List[Dict[str, Any]]:
+        """
+        Busca devocionais por critérios (para desenvolvimento)
+        Args:
+            titulo: Parte do título para buscar
+            autor: Parte do nome do autor para buscar
+        Returns:
+            Lista de devocionais encontrados
+        """
+        try:
+            with DatabaseConnection(**DB_CONFIG) as db:
+                # Construir query dinamicamente baseada nos critérios
+                where_conditions = []
+                params = {}
+                
+                if titulo.strip():
+                    where_conditions.append("LOWER(title) LIKE LOWER(%(titulo)s)")
+                    params['titulo'] = f"%{titulo.strip()}%"
+                
+                if autor.strip():
+                    where_conditions.append("LOWER(author) LIKE LOWER(%(autor)s)")
+                    params['autor'] = f"%{autor.strip()}%"
+                
+                # Se não tem critérios, retorna lista vazia
+                if not where_conditions:
+                    print("[REPO DEBUG] Nenhum critério fornecido")
+                    return []
+                
+                # Query base
+                query = """
+                    SELECT id, title, main_verse, verse_reference, book_id,
+                        chapter, verse, content, application, prayer,
+                        author, publish_date, tags
+                    FROM devotionals_flow
+                    WHERE {}
+                    ORDER BY publish_date DESC, id DESC
+                    LIMIT 20
+                """.format(" AND ".join(where_conditions))
+                
+                print(f"[REPO DEBUG] Query: {query}")
+                print(f"[REPO DEBUG] Params: {params}")
+                
+                db.cursor.execute(query, params)
+                resultados = db.cursor.fetchall()
+                
+                if not resultados:
+                    print("[REPO DEBUG] Nenhum resultado encontrado")
+                    return []
+                
+                # Converter para lista de dicionários
+                campos = [
+                    'id', 'title', 'main_verse', 'verse_reference', 'book_id',
+                    'chapter', 'verse', 'content', 'application', 'prayer',
+                    'author', 'publish_date', 'tags'
+                ]
+                
+                devocionais = []
+                for resultado in resultados:
+                    devocional_dict = dict(zip(campos, resultado))
+                    devocionais.append(devocional_dict)
+                
+                print(f"[REPO DEBUG] Encontrados {len(devocionais)} devocionais")
+                return devocionais
+                
+        except Exception as e:
+            print(f"[REPO DEBUG] Erro na busca: {e}")
+            return []
+
+   
 
     @staticmethod
     def buscar_devocionais_por_livro(book_id: int, limit: int = 50) -> List[Dict[str, Any]]:
