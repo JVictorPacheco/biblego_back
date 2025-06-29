@@ -4,6 +4,9 @@ from app.Repository.devotionals_repository import DevotionalsRepository
 from app.Models.devotional import Devotional, DevotionalCreate, DevotionalUpdate
 from werkzeug.exceptions import BadRequest, NotFound, Unauthorized
 from flask import current_app
+import traceback
+
+
 
 
 class DevocionalService:
@@ -33,94 +36,120 @@ class DevocionalService:
         }
 
 
-    def criar_devocional(self, devocional_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def criar_devocional(self, devocional_data: Dict[str, Any], user_id: int) -> Tuple[Dict[str, Any], int]:
         """
-        Cria um novo devocional aplicando todas as validações de negócio.
-        
-        Args:
-            devocional_data: Dados do devocional a ser criado
-            user_id: ID do usuário que está criando (para auditoria)
-            
-        Returns:
-            Dict com dados do devocional criado
-            
-        Raises:
-            BadRequest: Se dados inválidos
-            Exception: Para erros internos
+        Cria um novo devocional (versão com debug COMPLETO)
         """
         try:
-            # 1. Validação de entrada (Single Responsibility)
+            # 1. VALIDAÇÃO INICIAL
+            print(f"[SERVICE DEBUG 1] Dados recebidos: {type(devocional_data)}")
+            print(f"[SERVICE DEBUG 1] User ID: {user_id}")
+            print(f"[SERVICE DEBUG 1] Primeiros campos: {list(devocional_data.keys())[:5] if devocional_data else 'None'}")
+            
+            if devocional_data is None:
+                current_app.logger.error("devocional_data é None")
+                return {"erro": "Dados do devocional não foram fornecidos"}, 400
+            
+            if not isinstance(devocional_data, dict):
+                current_app.logger.error(f"devocional_data não é dict: {type(devocional_data)}")
+                return {"erro": "Dados devem ser um objeto JSON válido"}, 400
+            
+            if not devocional_data:
+                return {"erro": "Dados do devocional não podem estar vazios"}, 400
+            
+            # 2. VALIDAÇÃO DETALHADA
+            print(f"[SERVICE DEBUG 2] Antes da validação: {type(devocional_data)}")
             self._validar_dados_criacao(devocional_data)
+            print(f"[SERVICE DEBUG 2] Após validação: {type(devocional_data)}")
             
-            # 2. Sanitização e formatação dos dados
+            # 3. SANITIZAÇÃO
+            print(f"[SERVICE DEBUG 3] Antes sanitização: {type(devocional_data)}")
             devocional_sanitizado = self._sanitizar_dados_devocional(devocional_data)
+            print(f"[SERVICE DEBUG 3] Após sanitização: {type(devocional_sanitizado)}")
+            print(f"[SERVICE DEBUG 3] Dados sanitizados é None? {devocional_sanitizado is None}")
+            print(f"[SERVICE DEBUG 3] Campos sanitizados: {list(devocional_sanitizado.keys()) if devocional_sanitizado else 'None'}")
             
-            # 3. Aplicação de regras de negócio específicas
-            devocional_processado = self._aplicar_regras_negocio_criacao(
-                devocional_sanitizado, user_id
-            )
+            # 4. REGRAS DE NEGÓCIO
+            print(f"[SERVICE DEBUG 4] Antes regras negócio: {type(devocional_sanitizado)}")
+            devocional_processado = self._aplicar_regras_negocio_criacao(devocional_sanitizado, user_id)
+            print(f"[SERVICE DEBUG 4] Após regras negócio: {type(devocional_processado)}")
+            print(f"[SERVICE DEBUG 4] Dados processados é None? {devocional_processado is None}")
+            print(f"[SERVICE DEBUG 4] Campos processados: {list(devocional_processado.keys()) if devocional_processado else 'None'}")
             
-            # 4. Criação no repository
-            devocional_criado = self.devocional_repository.criar_devocional(devocional_processado)
+            # 5. VERIFICAÇÃO FINAL ANTES DO REPOSITORY
+            if devocional_processado is None:
+                print("[SERVICE DEBUG 5] ERRO: devocional_processado é None!")
+                return {"erro": "Erro no processamento dos dados"}, 500
             
-            if not devocional_criado:
-                raise Exception("Falha ao criar devocional no banco de dados")
+            print(f"[SERVICE DEBUG 5] Enviando para repository: {type(devocional_processado)}")
+            print(f"[SERVICE DEBUG 5] Últimos campos: {list(devocional_processado.keys())[-5:] if devocional_processado else 'None'}")
             
-            # 5. Log de auditoria
-            self._log_operacao_sucesso("criar_devocional", user_id, devocional_criado.get('id'))
+            # 6. CRIAÇÃO NO REPOSITORY
+            devocional_id = self.devocional_repository.criar_devocional(devocional_processado)
+            
+            if not devocional_id:
+                return {"erro": "Falha ao criar devocional no banco de dados"}, 500
             
             return {
                 "mensagem": "Devocional criado com sucesso",
-                "devocional": devocional_criado,
-                "status": "ativo"
-            }
+                "id": devocional_id,
+                "titulo": devocional_processado.get('title')
+            }, 201
             
-        except BadRequest:
-            raise
+        except ValueError as e:
+            print(f"[SERVICE DEBUG ERROR] ValueError: {str(e)}")
+            current_app.logger.warning(f"Dados inválidos: {str(e)}")
+            return {"erro": str(e)}, 400
         except Exception as e:
-            self._log_operacao_erro("criar_devocional", user_id, str(e))
+            print(f"[SERVICE DEBUG ERROR] Exception: {str(e)}")
+            print(f"[SERVICE DEBUG ERROR] Traceback: {traceback.format_exc()}")
             current_app.logger.error(f"Erro ao criar devocional: {str(e)}")
-            raise Exception("Falha interna ao criar devocional")
+            return {"erro": "Falha interna ao criar devocional"}, 500
 
 
     def obter_devocional_por_id(self, devocional_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
         """
-        Obtém um devocional específico por ID.
-        
-        Args:
-            devocional_id: ID do devocional
-            user_id: ID do usuário (para verificações de permissão)
-            
-        Returns:
-            Dict com dados do devocional
-            
-        Raises:
-            BadRequest: Se ID inválido
-            NotFound: Se devocional não existe
+        Deleta um devocional usando SUA função buscar_devocional_por_id
         """
         try:
+            print(f"[SERVICE DEBUG] Deletando devocional {devocional_id} por usuário {user_id}")
+            
             # 1. Validação do ID
             if not isinstance(devocional_id, int) or devocional_id <= 0:
-                raise BadRequest("ID de devocional inválido")
+                return {"erro": "ID de devocional inválido"}, 400
             
-            # 2. Busca no repository
-            devocional = self.devocional_repository.buscar_por_id(devocional_id)
+            # 2. Buscar devocional usando SUA função
+            devocional = self.devocional_repository.buscar_devocional_por_id(devocional_id)
             
             if not devocional:
-                raise NotFound("Devocional não encontrado")
+                return {"erro": "Devocional não encontrado"}, 404
             
-            # 3. Verificação de permissões (se necessário)
-            if not self._usuario_pode_acessar_devocional(devocional, user_id):
-                raise Unauthorized("Sem permissão para acessar este devocional")
+            print(f"[SERVICE DEBUG] Devocional encontrado: {devocional.get('title')}")
+            print(f"[SERVICE DEBUG] Autor: {devocional.get('author')}")
             
-            # 4. Formatação da resposta
-            return self._formatar_resposta_devocional(devocional)
+            # 3. OPCIONAL: Verificar se usuário pode deletar
+            # (Exemplo: só o autor pode deletar, ou qualquer usuário logado)
+            # if devocional.get('created_by') != user_id:  # Se tivesse campo created_by
+            #     return {"erro": "Sem permissão para deletar este devocional"}, 403
             
-        except (BadRequest, NotFound, Unauthorized):
-            raise
+            # 4. Deletar no repository
+            sucesso = self.devocional_repository.deletar_devocional(devocional_id)
+            
+            if not sucesso:
+                return {"erro": "Falha ao deletar devocional"}, 500
+            
+            # 5. Log de sucesso
+            current_app.logger.info(f"Devocional '{devocional.get('title')}' (ID: {devocional_id}) deletado por usuário {user_id}")
+            
+            return {
+                "mensagem": "Devocional deletado com sucesso",
+                "id": devocional_id,
+                "titulo": devocional.get('title')  # ← Informação extra graças à sua função!
+            }, 200
+            
         except Exception as e:
-            current_app.logger.error(f"Erro ao obter devocional {devocional_id}: {str(e)}")
-            raise Exception("Falha interna ao obter devocional")
+            current_app.logger.error(f"Erro ao deletar devocional {devocional_id}: {str(e)}")
+            return {"erro": "Falha interna ao deletar devocional"}, 500
 
 
     def listar_devocionais(self, filtros: Dict[str, Any] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
@@ -198,7 +227,7 @@ class DevocionalService:
                 return {"erro": "ID de devocional inválido"}, 400
             
             # 2. Verificação de existência e permissões
-            devocional_existente = self.devocional_repository.buscar_por_id(devocional_id)
+            devocional_existente = self.devocional_repository.buscar_devocional_por_id(devocional_id)
             if not devocional_existente:
                 return {"erro": "Devocional não encontrado"}, 404
             
@@ -230,42 +259,49 @@ class DevocionalService:
             return {"erro": "Falha interna ao atualizar devocional"}, 500
 
 
-    def deletar_devocional(self, devocional_id: int, user_id: int) -> Tuple[Dict[str, Any], int]:
-        """
-        Deleta um devocional (soft delete).
-        
-        Args:
-            devocional_id: ID do devocional
-            user_id: ID do usuário que está deletando
-            
-        Returns:
-            Tuple (resposta, status_code)
-        """
+    def deletar_devocional_interno(self, devocional_id: int) -> Tuple[Dict[str, Any], int]:
+        """Deleta um devocional - método interno para desenvolvedor"""
         try:
-            # 1. Validação do ID
-            if not isinstance(devocional_id, int) or devocional_id <= 0:
-                return {"erro": "ID de devocional inválido"}, 400
+            print(f"[DEV SERVICE] Deletando devocional {devocional_id}")
             
-            # 2. Verificação de existência e permissões
-            devocional = self.devocional_repository.buscar_por_id(devocional_id)
+            if not isinstance(devocional_id, int) or devocional_id <= 0:
+                return {"erro": "ID inválido"}, 400
+            
+            # Buscar primeiro para obter dados
+            devocional = self.devocional_repository.buscar_devocional_por_id(devocional_id)
             if not devocional:
                 return {"erro": "Devocional não encontrado"}, 404
             
-            if not self._usuario_pode_deletar_devocional(devocional, user_id):
-                return {"erro": "Sem permissão para deletar este devocional"}, 403
+            # Deletar
+            sucesso = self.devocional_repository.deletar_devocional(devocional_id)
+            if not sucesso:
+                return {"erro": "Falha ao deletar no banco"}, 500
             
-            # 3. Soft delete no repository
-            resultado = self.devocional_repository.deletar_devocional(devocional_id, user_id)
+            print(f"[DEV SERVICE] ✅ Deletado: '{devocional.get('title')}'")
             
-            # 4. Log de auditoria
-            self._log_operacao_sucesso("deletar_devocional", user_id, devocional_id)
-            
-            return resultado
+            return {
+                "mensagem": "Devocional deletado com sucesso",
+                "id": devocional_id,
+                "titulo": devocional.get('title'),
+                "autor": devocional.get('author'),
+                "modo": "interno_desenvolvedor"
+            }, 200
             
         except Exception as e:
-            self._log_operacao_erro("deletar_devocional", user_id, str(e))
-            current_app.logger.error(f"Erro ao deletar devocional {devocional_id}: {str(e)}")
-            return {"erro": "Falha interna ao deletar devocional"}, 500
+            print(f"[DEV SERVICE] ❌ Erro: {e}")
+            return {"erro": "Falha interna"}, 500
+
+
+    def buscar_por_criterios(self, titulo: str = "", autor: str = "") -> List[Dict[str, Any]]:
+        """Busca devocionais por critérios"""
+        try:
+            print(f"[DEV SERVICE] Buscando: titulo='{titulo}', autor='{autor}'")
+            devocionais = self.devocional_repository.buscar_por_criterios_dev(titulo, autor)
+            print(f"[DEV SERVICE] Encontrados: {len(devocionais)}")
+            return devocionais
+        except Exception as e:
+            print(f"[DEV SERVICE] Erro na busca: {e}")
+            return []
 
 
     def obter_devocional_do_dia(self, data_referencia: Optional[date] = None) -> Dict[str, Any]:
@@ -335,6 +371,7 @@ class DevocionalService:
         # MÉTODOS PRIVADOS (Single Responsibility)
         # ================================
 
+
     def _validar_dados_criacao(self, dados: Dict[str, Any]) -> None:
         """Valida dados para criação de devocional."""
         if not isinstance(dados, dict):
@@ -375,40 +412,95 @@ class DevocionalService:
 
 
     def _sanitizar_dados_devocional(self, dados: Dict[str, Any]) -> Dict[str, Any]:
-        """Sanitiza e formata dados do devocional."""
-        dados_sanitizados = dados.copy()
-        
-        # Sanitização de strings
-        if 'titulo' in dados_sanitizados:
-            dados_sanitizados['titulo'] = dados_sanitizados['titulo'].strip()
-        
-        if 'conteudo' in dados_sanitizados:
-            dados_sanitizados['conteudo'] = dados_sanitizados['conteudo'].strip()
-        
-        if 'autor' in dados_sanitizados:
-            dados_sanitizados['autor'] = dados_sanitizados['autor'].strip()
-        
-        # Formatação de tags
-        if 'tags' in dados_sanitizados and isinstance(dados_sanitizados['tags'], str):
-            dados_sanitizados['tags'] = [tag.strip() for tag in dados_sanitizados['tags'].split(',')]
-        
-        return dados_sanitizados
-
+            """
+            Sanitiza dados (versão com debug)
+            """
+            # print(f"[SANITIZAR DEBUG 1] Entrada: {type(dados)}")
+            # print(f"[SANITIZAR DEBUG 1] É None? {dados is None}")
+            
+            # VERIFICAÇÃO CRÍTICA
+            if dados is None:
+                # print("[SANITIZAR DEBUG ERROR] Dados são None!")
+                raise ValueError("Dados para sanitização são None")
+            
+            if not isinstance(dados, dict):
+                # print(f"[SANITIZAR DEBUG ERROR] Dados não são dict: {type(dados)}")
+                raise ValueError(f"Dados devem ser um dicionário, recebido: {type(dados)}")
+            
+            # print(f"[SANITIZAR DEBUG 2] Copiando dados...")
+            
+            try:
+                dados_sanitizados = dados.copy()
+                print(f"[SANITIZAR DEBUG 2] Cópia feita: {type(dados_sanitizados)}")
+            except Exception as e:
+                print(f"[SANITIZAR DEBUG ERROR] Erro ao copiar: {e}")
+                raise ValueError(f"Erro ao copiar dados: {e}")
+            
+            # Sanitização de strings
+            campos_string = ['title', 'main_verse', 'verse_reference', 'content', 
+                            'application', 'prayer', 'author', 'tags']
+            
+            for campo in campos_string:
+                if campo in dados_sanitizados:
+                    valor = dados_sanitizados[campo]
+                    if valor is not None and isinstance(valor, str):
+                        dados_sanitizados[campo] = valor.strip()
+            
+            # Conversão de data
+            if 'publish_date' in dados_sanitizados:
+                valor_data = dados_sanitizados['publish_date']
+                if isinstance(valor_data, str):
+                    try:
+                        from datetime import datetime
+                        dados_sanitizados['publish_date'] = datetime.strptime(valor_data, '%Y-%m-%d').date()
+                    except ValueError as e:
+                        raise ValueError(f"Formato de data inválido: {e}")
+            
+            # print(f"[SANITIZAR DEBUG 3] Saída: {type(dados_sanitizados)}")
+            # print(f"[SANITIZAR DEBUG 3] Retornando None? {dados_sanitizados is None}")
+            
+            return dados_sanitizados
+    
 
     def _aplicar_regras_negocio_criacao(self, dados: Dict[str, Any], user_id: int) -> Dict[str, Any]:
-        """Aplica regras de negócio específicas para criação."""
-        dados_processados = dados.copy()
-        
-        # Adiciona metadados de criação
-        dados_processados['criado_por'] = user_id
-        dados_processados['data_criacao'] = datetime.now()
-        
-        # Define valores padrão
-        dados_processados.setdefault('ativo', True)
-        dados_processados.setdefault('categoria', 'geral')
-        dados_processados.setdefault('data_publicacao', date.today())
-        
-        return dados_processados
+            """
+            Aplica regras de negócio (versão com debug)
+            """
+            # print(f"[REGRAS DEBUG 1] Entrada: {type(dados)}")
+            # print(f"[REGRAS DEBUG 1] É None? {dados is None}")
+            # print(f"[REGRAS DEBUG 1] User ID: {user_id}")
+            
+            if dados is None:
+                print("[REGRAS DEBUG ERROR] Dados são None!")
+                raise ValueError("Dados para regras de negócio são None")
+            
+            try:
+                dados_processados = dados.copy()
+                print(f"[REGRAS DEBUG 2] Cópia feita: {type(dados_processados)}")
+            except Exception as e:
+                print(f"[REGRAS DEBUG ERROR] Erro ao copiar: {e}")
+                raise ValueError(f"Erro ao copiar dados: {e}")
+            
+            # Validação de campos obrigatórios
+            campos_obrigatorios = [
+                'title', 'main_verse', 'verse_reference', 'book_id',
+                'chapter', 'verse', 'content', 'application',
+                'prayer', 'author', 'publish_date', 'tags'
+            ]
+            
+            for campo in campos_obrigatorios:
+                if campo not in dados_processados or not dados_processados[campo]:
+                    raise ValueError(f"Campo obrigatório '{campo}' está ausente ou vazio")
+            
+            # Define data de publicação se necessário
+            if 'publish_date' not in dados_processados:
+                from datetime import date
+                dados_processados['publish_date'] = date.today()
+            
+            # print(f"[REGRAS DEBUG 3] Saída: {type(dados_processados)}")
+            # print(f"[REGRAS DEBUG 3] Retornando None? {dados_processados is None}")
+            
+            return dados_processados
 
 
     def _aplicar_regras_negocio_atualizacao(self, dados: Dict[str, Any], devocional_existente: Dict[str, Any], user_id: int) -> Dict[str, Any]:
@@ -528,6 +620,70 @@ class DevocionalService:
         current_app.logger.info(
             f"[DEVOCIONAL SUCCESS] {operacao} | User: {user_id} | Devocional: {devocional_id}"
         )
+
+
+    def _validar_dados_criacao(self, devocional_data: Dict[str, Any]) -> None:
+        """
+        Valida os dados básicos de entrada para criação de devocional.
+        Args:
+            devocional_data: Dados do devocional a serem validados
+        Raises:
+            ValueError: Se algum dado for inválido
+        """
+        if not devocional_data:
+            raise ValueError("Dados do devocional não podem estar vazios")
+        
+        # Validação de tipos básicos
+        campos_string = ['title', 'main_verse', 'verse_reference', 'content', 
+                        'application', 'prayer', 'author', 'tags']
+        
+        for campo in campos_string:
+            if campo in devocional_data:
+                if not isinstance(devocional_data[campo], str):
+                    raise ValueError(f"Campo '{campo}' deve ser uma string")
+                if not devocional_data[campo].strip():
+                    raise ValueError(f"Campo '{campo}' não pode estar vazio")
+        
+        # Validação de campos numéricos
+        campos_numericos = ['book_id', 'chapter', 'verse']
+        for campo in campos_numericos:
+            if campo in devocional_data:
+                if not isinstance(devocional_data[campo], int):
+                    raise ValueError(f"Campo '{campo}' deve ser um número inteiro")
+                if devocional_data[campo] <= 0:
+                    raise ValueError(f"Campo '{campo}' deve ser maior que zero")
+        
+        # Validação específica para book_id
+        if 'book_id' in devocional_data:
+            if devocional_data['book_id'] < 1 or devocional_data['book_id'] > 66:
+                raise ValueError("book_id deve estar entre 1 e 66 (livros da Bíblia)")
+        
+        # Validação de data
+        if 'publish_date' in devocional_data:
+            if isinstance(devocional_data['publish_date'], str):
+                try:
+                    from datetime import datetime
+                    datetime.strptime(devocional_data['publish_date'], '%Y-%m-%d')
+                except ValueError:
+                    raise ValueError("publish_date deve estar no formato YYYY-MM-DD")
+        
+        print(f"[DEBUG] Validação de dados passou para: {list(devocional_data.keys())}")
+
+
+    def verificar_devocional_existe(self, devocional_id: int) -> bool:
+        """
+        Verifica se um devocional existe (método auxiliar)
+        Args:
+            devocional_id: ID do devocional
+        Returns:
+            True se existe, False caso contrário
+        """
+        try:
+            devocional = self.devocional_repository.buscar_devocional_por_id(devocional_id)
+            return devocional is not None
+        except Exception as e:
+            print(f"[DEV SERVICE] ❌ Erro ao verificar existência: {e}")
+            return False    
 
 
     def _log_operacao_erro(self, operacao: str, user_id: int, erro: str) -> None:
