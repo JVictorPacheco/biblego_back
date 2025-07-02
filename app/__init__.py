@@ -1,8 +1,9 @@
-from flask import Flask
+from flask import Flask, app
 # from App.Routes.task_routes import task_blueprint
 from  app.Routes.user_routes import user_blueprint
 from app.Routes.auth_routes import auth_blueprint
 from app.Routes.devotional_routes import devotional_blueprint
+from app.Routes.audio_route import audio_blueprint
 from flasgger import Swagger
 #import os
 
@@ -29,6 +30,7 @@ def create_app():
     app_run.register_blueprint(auth_blueprint)
     app_run.register_blueprint(user_blueprint)
     app_run.register_blueprint(devotional_blueprint)
+    app_run.register_blueprint(audio_blueprint)
   
     return app_run
     
