@@ -106,7 +106,7 @@ def atualizar_audios_com_logs():
     conn = db.connection
     cursor = conn.cursor()
     
-    pasta_audios = "/Users/joaopacheco/Downloads/devotionals/"
+    pasta_audios = "/Users/joaopacheco/Downloads/devotionals_feminino/"
     print(f"📁 Pasta de áudios: {pasta_audios}")
     
     # Verificar se a pasta existe
@@ -122,7 +122,7 @@ def atualizar_audios_com_logs():
         # Começar com apenas 10 arquivos para teste
         print("🔄 Processando arquivos de 1 a 10...")
         
-        for numero in range(12):  # Teste com apenas 10 primeiro
+        for numero in range(348):  # Teste com apenas 10 primeiro
             print(f"\n📋 Processando devocional {numero}...")
             
             nome_arquivo = f"devocional_{numero}_completo.mp3"
@@ -160,7 +160,7 @@ def atualizar_audios_com_logs():
                     print(f"🔄 Executando UPDATE...")
                     cursor.execute("""
                         UPDATE devotionals_flow 
-                        SET pt_br_masculino = %s 
+                        SET pt_br_feminino = %s 
                         WHERE id = %s
                     """, (dados_audio, numero))
                     
@@ -199,7 +199,7 @@ def atualizar_audios_com_logs():
 
 # Verificar arquivos na pasta
 def listar_arquivos():
-    pasta = "/Users/joaopacheco/Downloads/devotionals/"
+    pasta = "/Users/joaopacheco/Downloads/devotionals_feminino/"
     print(f"📁 Listando arquivos em: {pasta}")
     
     if os.path.exists(pasta):
