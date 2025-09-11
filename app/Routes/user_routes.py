@@ -131,8 +131,14 @@ def criar_usuario():
     except ValueError as e:
         return jsonify({"erro": str(e)}), 400
     except Exception as e:
-        # return jsonify({"erro": "Falha ao criar usuário"}), 500
-        return jsonify({"erro": e}), 500
+        # Tratamento específico para erros de banco
+        error_msg = str(e)
+        if "usuarios_sexo_check" in error_msg:
+            return jsonify({"erro": "Valor inválido para sexo. Use 'M' ou 'F'"}), 400
+        elif "usuarios_email_key" in error_msg:
+            return jsonify({"erro": "Email já cadastrado no sistema"}), 400
+        else:
+            return jsonify({"erro": "Falha ao criar usuário: " + error_msg}), 500
 
 
 
