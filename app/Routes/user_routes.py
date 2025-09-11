@@ -38,50 +38,51 @@ def criar_usuario():
             - endereco
             - sexo
             - data_nascimento
-            - firebase_uid
             - senha
+            - firebase_uid
           properties:
             nome:
               type: string
-              example: "João Silva"
+              example: "Elew Mendez"
               description: Nome completo do usuário
             email:
               type: string
               format: email
-              example: "joao@email.com"
+              example: "elew@gmail.com"
               description: E-mail válido do usuário
             telefone:
               type: string
-              example: "11999999999"
+              example: "21981190811"
               description: Telefone com DDD
             cidade:
               type: string
-              example: "São Paulo"
+              example: "Cuiabá"
             estado:
               type: string
-              example: "SP"
+              example: "MT"
               maxLength: 2
             endereco:
               type: string
-              example: "Rua Exemplo, 123"
+              example: "Rua Lua, 44"
             sexo:
               type: string
-              enum: ["M", "F", "Outro"]
+              enum: ["M", "F"]
               example: "M"
+              description: "Use 'M' para Masculino ou 'F' para Feminino"
             data_nascimento:
               type: string
               format: date
-              example: "1990-01-01"
+              example: "1990-09-01"
               description: Formato YYYY-MM-DD
-            firebase_uid:
-              type: string
-              example: "abc123xyz456"
-              description: ID do usuário no Firebase
             senha:
               type: string
               format: password
-              example: "senhaSegura123"
-              minLength: 8
+              example: "minhasenha123"
+              minLength: 2
+            firebase_uid:
+              type: string
+              example: "Sdfg!#22uiyyyu"
+              description: ID do usuário no Firebase
     responses:
       201:
         description: Usuário criado com sucesso
