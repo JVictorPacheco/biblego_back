@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: biblego-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT run:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_NAME
+        value: biblego
+      - key: DATABASE_USER
+        value: biblego
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: biblego-db
+          property: password
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: biblego-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: biblego-db
+          property: port
