@@ -132,11 +132,23 @@ def criar_usuario():
         return jsonify({"erro": str(e)}), 400
     except Exception as e:
         # Tratamento específico para erros de banco
+        import psycopg2
         error_msg = str(e)
-        if "usuarios_sexo_check" in error_msg:
-            return jsonify({"erro": "Valor inválido para sexo. Use 'M' ou 'F'"}), 400
-        elif "usuarios_email_key" in error_msg:
-            return jsonify({"erro": "Email já cadastrado no sistema"}), 400
+        
+        if isinstance(e, psycopg2.errors.CheckViolation):
+            if "usuarios_sexo_check" in error_msg:
+                return jsonify({"erro": "Valor inválido para sexo. Use 'M' ou 'F'"}), 400
+            else:
+                return jsonify({"erro": "Dados inválidos: " + error_msg}), 400
+                
+        elif isinstance(e, psycopg2.errors.UniqueViolation):
+            if "usuarios_email_key" in error_msg:
+                return jsonify({"erro": "Email já cadastrado no sistema"}), 400
+            elif "usuarios_pkey" in error_msg:
+                return jsonify({"erro": "Erro interno: ID duplicado"}), 500
+            else:
+                return jsonify({"erro": "Dados já existem no sistema"}), 400
+                
         else:
             return jsonify({"erro": "Falha ao criar usuário: " + error_msg}), 500
 
