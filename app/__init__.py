@@ -27,6 +27,12 @@ def create_app():
 }
     
     Swagger(app_run)
+    
+    # Rota raiz
+    @app_run.route('/')
+    def home():
+        return {"message": "BibleGo API está funcionando!", "docs": "/api-docs/"}
+    
     app_run.register_blueprint(auth_blueprint)
     app_run.register_blueprint(user_blueprint)
     app_run.register_blueprint(devotional_blueprint)
