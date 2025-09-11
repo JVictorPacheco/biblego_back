@@ -3,7 +3,7 @@ from datetime import date, datetime
 from flask import jsonify, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from app.Config.database import get_db_connection, DB_CONFIG
+from app.Config.production_database import get_db_connection, get_db_config
 from app.Utils.database_connection import DatabaseConnection
 
 
@@ -50,7 +50,7 @@ class DevotionalsRepository:
             print(f"[REPO DEBUG] Todos os campos presentes: {list(devocional_data.keys())}")
             
             # Executar insert no banco
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     INSERT INTO devotionals_flow (
                         title, main_verse, verse_reference, book_id,
@@ -105,7 +105,7 @@ class DevotionalsRepository:
             Dicionário com dados do devocional ou None se não encontrado
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,
@@ -143,7 +143,7 @@ class DevotionalsRepository:
             Lista de devocionais da data especificada
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,
@@ -181,7 +181,7 @@ class DevotionalsRepository:
             Lista de devocionais no período especificado
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,
@@ -222,7 +222,7 @@ class DevotionalsRepository:
             Lista de devocionais do autor especificado
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,
@@ -264,7 +264,7 @@ class DevotionalsRepository:
             Lista de devocionais que contenham as tags
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,
@@ -308,7 +308,7 @@ class DevotionalsRepository:
             data_referencia = date.today()
             
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,
@@ -351,7 +351,7 @@ class DevotionalsRepository:
             Dicionário com devocionais e informações de paginação
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 # Calcula offset
                 offset = (page - 1) * per_page
                 
@@ -428,7 +428,7 @@ class DevotionalsRepository:
             True se atualizado com sucesso, False caso contrário
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 # Prepara a atualização dinâmica
                 set_parts = []
                 params = {'id': devocional_id}
@@ -468,7 +468,7 @@ class DevotionalsRepository:
     def deletar_devocional(devocional_id: int) -> bool:
         """Deleta um devocional no banco (VERSÃO SIMPLES)"""
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = "DELETE FROM devotionals_flow WHERE id = %(id)s"
                 db.cursor.execute(query, {'id': devocional_id})
                 db.connection.commit()
@@ -483,7 +483,7 @@ class DevotionalsRepository:
         try:
             from datetime import date
             
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 hoje = date.today()
                 
                 query = """
@@ -520,7 +520,7 @@ class DevotionalsRepository:
         try:
             from datetime import date, timedelta
             
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 hoje = date.today()
                 data_inicio = hoje - timedelta(days=dias_anteriores)
                 
@@ -564,7 +564,7 @@ class DevotionalsRepository:
             Lista de devocionais encontrados
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 # Construir query dinamicamente baseada nos critérios
                 where_conditions = []
                 params = {}
@@ -637,7 +637,7 @@ class DevotionalsRepository:
             Lista de devocionais do livro especificado
         """
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 query = """
                     SELECT id, title, main_verse, verse_reference, book_id,
                            chapter, verse, content, application, prayer,

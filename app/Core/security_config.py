@@ -1,7 +1,9 @@
 
+import os
+
 class SecurityConfig:
 
-    SECRET_KEY = "pythonjwt"  # EM PRODUÇÃO: os.getenv("JWT_SECRET_KEY")
+    SECRET_KEY = os.getenv("JWT_SECRET_KEY", "pythonjwt")  # Usa variável de ambiente em produção
     ALGORITHM = "HS256"
     TOKEN_AUDIT_ENABLED = True
     #TOKEN_EXPIRE_MINUTES = 1

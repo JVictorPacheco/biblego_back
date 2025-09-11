@@ -1,4 +1,4 @@
-from app.Config.database import get_db_connection, DB_CONFIG
+from app.Config.production_database import get_db_connection, get_db_config
 import bcrypt
 from psycopg2 import sql
 from app.Utils.database_connection import DatabaseConnection
@@ -96,7 +96,7 @@ class UsuarioRepository:
     def atualizar_usuario(self, user_id, novos_dados):
         
      try:
-        with DatabaseConnection(**DB_CONFIG) as db:
+        with DatabaseConnection(**get_db_config()) as db:
             # 1. Prepara a atualização
             set_parts = []
             params = []
@@ -152,7 +152,7 @@ class UsuarioRepository:
     def usuario_existe(user_id):
         """Verifica se um usuário existe sem trazer todos os dados"""
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 db.cursor.execute(
                     "SELECT 1 FROM usuarios WHERE id = %s LIMIT 1",
                     (user_id,)
@@ -167,7 +167,7 @@ class UsuarioRepository:
     def deletar_usuario(user_id):
         """Deleta um usuário permanentemente"""
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 # Opção 1: DELETE físico (comum)
                 db.cursor.execute(
                     "DELETE FROM usuarios WHERE id = %s RETURNING id",
@@ -260,7 +260,7 @@ class UsuarioRepository:
     def buscar_usuario_por_firebase_uid(self, firebase_uid: str) -> dict:
         """Busca todos os dados do usuário pelo firebase_uid"""
         try:
-            with DatabaseConnection(**DB_CONFIG) as db:
+            with DatabaseConnection(**get_db_config()) as db:
                 db.cursor.execute(
                     """SELECT id, email, nome, firebase_uid 
                     FROM usuarios 
