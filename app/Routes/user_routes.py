@@ -66,9 +66,9 @@ def criar_usuario():
               example: "Rua Lua, 44"
             sexo:
               type: string
-              enum: ["M", "F"]
-              example: "M"
-              description: "Use 'M' para Masculino ou 'F' para Feminino"
+              enum: ["Masculino", "Feminino"]
+              example: "Masculino"
+              description: "Use 'Masculino' para Masculino ou 'Feminino' para Feminino"
             data_nascimento:
               type: string
               format: date
