@@ -8,7 +8,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import psycopg2
 
 class DatabaseConnection:
-    #Inicializa os parâmetros de conexão
+    """
+    Inicializa os parâmetros de conexão
+    """
     def __init__(self, dbname, user, password, host, port):
         self.connection_parameters = {
             "dbname": dbname,
@@ -21,8 +23,11 @@ class DatabaseConnection:
         self.connection = None
         self.cursor = None
 
-    #Estabelece a conexão com o banco de dados.
+    
     def connect(self):
+        """
+        Estabelece a conexão com o banco de dados.
+        """
         try:
             self.connection = psycopg2.connect(**self.connection_parameters)
             self.cursor = self.connection.cursor()
@@ -33,7 +38,9 @@ class DatabaseConnection:
 
     # executa uma consulta SQL e retorna os resultados.
     def execute_query(self, query, params=None, fetch=False):
-        
+        """
+        Realiza um/uma script/query quando esta conectado ao banco de dados
+        """
         try:
             
             if not self.cursor:
